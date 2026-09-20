@@ -55,11 +55,8 @@
         }
       }
     }
-<<<<<<< HEAD
   },
   "cli": {
     "analytics": false
-=======
->>>>>>> 1b70897d7cd6a1b40d3e0aee0be0bcd992b20975
   }
 }
