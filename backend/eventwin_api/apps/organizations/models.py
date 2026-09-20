@@ -1,9 +1,11 @@
 from django.db import models
 
+from apps.base_models import UUIDTimestampedModel
 
-class Organization(models.Model):
+
+class Organization(UUIDTimestampedModel):
     name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+    legal_name = models.CharField(max_length=255, blank=True)
 
     def __str__(self):
         return self.name

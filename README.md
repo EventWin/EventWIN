@@ -9,6 +9,43 @@ EventTwin is a digital-twin event planning and decision-support platform for age
 - Frontend: Angular
 - Optional AI layer: Python service or Django-integrated AI module
 
+## Architecture
+
+```mermaid
+flowchart TD
+  UI[Angular Frontend]
+  API[Django REST API]
+  DB[(PostgreSQL)]
+  SIM[Simulation Engine]
+  AI[Optional AI Service]
+
+  UI --> API
+  API --> DB
+  API --> SIM
+  SIM --> DB
+  SIM --> AI
+  AI --> DB
+```
+
+## Data Model
+
+```mermaid
+erDiagram
+  ORGANIZATION ||--o{ EVENT : owns
+  ORGANIZATION ||--o{ PARTICIPANT : has
+  EVENT ||--o{ EVENT_SCHEDULE_ITEM : contains
+  EVENT ||--o{ RESOURCE : uses
+  EVENT ||--o{ BUDGET : has
+  EVENT ||--o{ SCENARIO : simulates
+  EVENT ||--o{ EVENT_PARTICIPANT : includes
+  PARTICIPANT ||--o{ EVENT_PARTICIPANT : attends
+  PARTICIPANT ||--o{ PARTICIPANT_PREFERENCE : defines
+  PARTICIPANT ||--o{ PARTICIPANT_CONSTRAINT : defines
+  BUDGET ||--o{ BUDGET_CATEGORY : contains
+  BUDGET_CATEGORY ||--o{ COST_ITEM : tracks
+  SCENARIO ||--o{ SCENARIO_RESULT : produces
+```
+
 ## Repository structure
 
 ```text
@@ -41,6 +78,14 @@ database/
 3. Configure PostgreSQL and environment variables.
 4. Install frontend dependencies.
 5. Run Django migrations and the Angular app.
+
+## Docker development
+
+Use Docker after the shared schema is agreed and the first migrations exist, before separate module work starts.
+
+1. Start PostgreSQL and the Django API with `docker compose up --build`.
+2. Let the API container run migrations on startup.
+3. Keep feature work pointing at the same containerized database so the team shares one runtime.
 
 ## Team workflow
 

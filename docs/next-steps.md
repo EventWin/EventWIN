@@ -79,9 +79,11 @@
 
 1. Agree on schemas and naming conventions.
 2. Create Django project structure and base settings.
-3. Create Angular app shell and service structure.
-4. Draft initial ERD and endpoint list.
-5. Start the first feature branch and first PR.
+3. Generate the initial database migrations and lock the shared ERD.
+4. Add Docker Compose for PostgreSQL and the Django API once the schema is stable.
+5. Create Angular app shell and service structure.
+6. Draft initial endpoint list.
+7. Start the first feature branch and first PR.
 
 ## Definition of done for Phase 0
 
