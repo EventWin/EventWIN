@@ -1,0 +1,196 @@
+<div class="steps">
+  <div class="step" [class.now]="step === 1" [class.done]="step > 1"><b>1</b><span>Mon événement</span></div>
+  <div class="rail"></div>
+  <div class="step" [class.now]="step === 2" [class.done]="step > 2"><b>2</b><span>Mes choix</span></div>
+  <div class="rail"></div>
+  <div class="step" [class.now]="step === 3" [class.done]="step > 3"><b>3</b><span>Ma décision</span></div>
+</div>
+
+<!-- Étape 1 -->
+<div class="sheet" *ngIf="step === 1">
+  <h1 class="title">Parlez-nous de votre événement</h1>
+  <p class="lede">Quatre informations suffisent pour construire votre jumeau. Tout reste modifiable ensuite.</p>
+  <div class="setup">
+    <div class="card mt-l">
+      <div class="field"><label for="f-name">Nom de l'événement</label>
+        <input class="in" id="f-name" value="Séminaire d'équipe — printemps 2026"></div>
+      <div class="field"><label>Type d'événement</label>
+        <div class="pills" id="f-type">
+          <button class="pill" aria-pressed="true">Séminaire d'équipe</button>
+          <button class="pill">Conférence</button>
+          <button class="pill">Voyage de groupe</button>
+          <button class="pill">Soirée d'entreprise</button>
+          <button class="pill">Convention</button>
+        </div></div>
+      <div class="field">
+        <div class="range-head"><label for="f-people">Nombre de participants</label><b class="n" id="o-people">{{ S.people }}</b></div>
+        <input type="range" id="f-people" min="10" max="400" [value]="S.people" step="5" (input)="onPeopleChange($event)"></div>
+      <div class="field">
+        <div class="range-head"><label for="f-days">Durée</label><b class="n" id="o-days">{{ S.days }} jour{{ S.days > 1 ? 's' : '' }}</b></div>
+        <input type="range" id="f-days" min="1" max="5" [value]="S.days" (input)="onDaysChange($event)"></div>
+      <div class="field" style="margin-bottom:0">
+        <label for="f-budget">Budget disponible <span class="hint">— le plafond à ne pas dépasser</span></label>
+        <div class="money"><span>€</span><input class="in" id="f-budget" inputmode="numeric" [value]="S.budget" (input)="onBudgetChange($event)"></div>
+        <p class="tiny muted" style="margin-top:9px">Soit <b class="n" id="o-perhead">{{ eur(S.budget / S.people) }}</b> par participant.</p>
+      </div>
+    </div>
+    <div class="card mt">
+      <div class="field" style="margin-bottom:0">
+        <label>Qu'est-ce qui compte le plus pour vos participants ? <span class="hint">— deux maximum</span></label>
+        <div class="pills" id="f-prio">
+          <button class="pill" [attr.aria-pressed]="hasPrio('conviv')" (click)="togglePrio('conviv')">La convivialité</button>
+          <button class="pill" [attr.aria-pressed]="hasPrio('confort')" (click)="togglePrio('confort')">Le confort</button>
+          <button class="pill" [attr.aria-pressed]="hasPrio('contenu')" (click)="togglePrio('contenu')">Le contenu</button>
+          <button class="pill" [attr.aria-pressed]="hasPrio('eco')" (click)="togglePrio('eco')">L'impact écologique</button>
+        </div>
+        <p class="tiny muted" style="margin-top:12px">Un groupe venu pour se retrouver ne juge pas son événement comme un groupe venu apprendre : ce choix change le calcul de la satisfaction.</p>
+      </div>
+    </div>
+    <button class="btn btn-ai btn-lg mt-l" (click)="goToStep(2)">Construire mon jumeau numérique</button>
+  </div>
+</div>
+
+<!-- Étape 2 -->
+<div class="sheet" *ngIf="step === 2">
+  <h1 class="title">Faites vos choix, regardez à gauche</h1>
+  <p class="lede">Chaque option modifie instantanément le budget et la satisfaction prévue. Rien n'est engagé.</p>
+  <div class="opt mt-l">
+    <aside class="live">
+      <div class="live-top"><span class="dotlive"></span> Jumeau numérique · recalcul en direct</div>
+      <div class="gauge">
+        <svg viewBox="0 0 150 150" width="146" height="146" role="img" aria-label="Satisfaction prévue">
+          <circle cx="75" cy="75" r="58" fill="none" class="g-track" stroke-width="11"/>
+          <circle cx="75" cy="75" r="58" fill="none" id="gauge" class="g-val" 
+                  [attr.stroke]="currentResult.score >= 80 ? '#22D3EE' : currentResult.score >= 62 ? '#7C5CFF' : '#E8455F'" 
+                  stroke-width="11"
+                  stroke-dasharray="364" 
+                  [attr.stroke-dashoffset]="364 * (1 - currentResult.score / 100)" 
+                  transform="rotate(-90 75 75)"/>
+          <text class="g-num" x="75" y="76" font-size="37" id="g-score">{{ currentResult.score }}</text>
+          <text class="g-lab" x="75" y="95">satisfaction prévue</text>
+        </svg>
+      </div>
+      <div class="total">
+        <div class="amt n" id="g-total" [style.color]="currentResult.total > S.budget ? '#FF8A9B' : '#fff'">{{ eur(currentResult.total) }}</div>
+        <div class="cap">coût total estimé</div>
+      </div>
+      <div class="budbar" id="budbar" [class.over]="currentResult.total > S.budget">
+        <i [style.width]="(currentResult.total / S.budget * 100 > 100 ? 100 : currentResult.total / S.budget * 100) + '%'"></i>
+      </div>
+      <div class="budmeta">
+        <span id="g-pct">{{ Math.round(currentResult.total / S.budget * 100) }} %</span>
+        <span id="g-left">{{ currentResult.total > S.budget ? 'dépassement' : eur(S.budget - currentResult.total) + ' restants' }}</span>
+      </div>
+      <div class="warnbox" id="over" *ngIf="currentResult.total > S.budget">Vous dépassez de <b class="n" id="g-over">{{ eur(currentResult.total - S.budget) }}</b>. Essayez l'optimisation automatique.</div>
+      
+      <div class="perhead"><span>Par participant</span><b class="n" id="g-pp">{{ eur(currentResult.total / S.people) }}</b></div>
+      
+      <button class="btn btn-ai" (click)="autopt()">
+        <svg viewBox="0 0 24 24" width="17" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7z"/></svg>
+        Optimiser pour moi
+      </button>
+      <button class="btn btn-ghost" (click)="reset()">Revenir à mes choix de départ</button>
+    </aside>
+    <div>
+      <div class="choices" id="choices">
+        <div class="poste" *ngFor="let p of POSTES">
+          <div class="poste-head">
+            <span class="ico" [innerHTML]="getIcon(p.icon)"></span>
+            <div><h3>{{ p.label }}</h3><p>{{ p.sub }}</p></div>
+            <div class="now"><b>{{ eur(getCostOf(p, S.choice[p.id])) }}</b>{{ p.perDay ? 'sur ' + S.days + ' jour' + (S.days > 1 ? 's' : '') : 'forfait' }}</div>
+          </div>
+          <div class="opts">
+            <button class="opt-btn" *ngFor="let o of p.options; let i = index" 
+                    [attr.aria-pressed]="S.choice[p.id] === i" 
+                    [class.active]="S.choice[p.id] === i"
+                    (click)="selectOption(p.id, i)">
+              <b>{{ o.n }}</b><small>{{ o.d }}</small>
+              <div class="stars">
+                <i [class.on]="o.s >= 19"></i><i [class.on]="o.s >= 38"></i><i [class.on]="o.s >= 57"></i><i [class.on]="o.s >= 76"></i><i [class.on]="o.s >= 95"></i>
+              </div>
+              <div class="price">{{ o.c === 0 ? 'inclus' : o.c + ' € / pers' + (p.perDay ? ' / jour' : '') }}</div>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="reco mt">
+        <div class="reco-in">
+          <div class="reco-head"><span class="orb"></span><h3>Ce que votre jumeau suggère</h3>
+            <span class="chip" style="margin-left:auto" id="reco-count">{{ tips.length ? tips.length + (tips.length > 1 ? ' pistes' : ' piste') : 'à jour' }}</span></div>
+          
+          <div *ngIf="tips.length === 0" class="reco-empty">
+            <b>Rien à redire.</b>Votre combinaison est au meilleur équilibre possible pour ce budget et ces priorités.
+          </div>
+          
+          <p *ngIf="tips.length > 0">Des échanges qui font baisser la note sans décevoir vos participants. Appliquez-en un, tout se recalcule.</p>
+          
+          <div id="tips" *ngIf="tips.length > 0">
+            <div class="tip" *ngFor="let t of tips">
+               <div><h4>{{ t.kind === 'eco' ? 'Passer' : 'Monter' }} {{ t.p.label.toLowerCase() }} en « {{ t.opt.n }} »</h4>
+               <p>{{ t.kind === 'eco' ? (t.dS >= 0 ? 'Vous économisez sans rien perdre : vos participants ne verront pas la différence.' : 'Le coût baisse nettement pour une perte de satisfaction à peine perceptible.') : 'Il vous reste de la marge : ce poste est celui qui rendra le plus vos participants contents.' }}</p></div>
+               <div class="impact"><b [style.color]="t.dC < 0 ? 'var(--gain)' : 'var(--tx-2)'">{{ t.dC < 0 ? '−' : '+' }}{{ eur(Math.abs(t.dC)) }}</b>
+               <small>satisfaction {{ t.dS >= 0 ? '+' : '−' }}{{ Math.abs(t.dS) }} pt{{ Math.abs(t.dS) > 1 ? 's' : '' }}</small></div>
+               <button class="btn btn-sm btn-ai" (click)="applyTip(t)">Appliquer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="navb">
+        <button class="btn" (click)="goToStep(1)">Revenir aux informations</button>
+        <button class="btn btn-ai" (click)="goToStep(3)">Voir ma décision</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Étape 3 -->
+<div class="sheet" *ngIf="step === 3">
+  <div style="max-width:900px;margin:0 auto">
+    <div class="card verdict">
+      <div class="big n" id="r-score">{{ currentResult.score }}</div>
+      <h2 id="r-title">{{ currentResult.total <= S.budget ? 'Votre événement tient dans le budget' : 'Vous dépassez de ' + eur(currentResult.total - S.budget) }}</h2>
+      <p id="r-text">{{ currentResult.total <= S.budget ? 'Satisfaction prévue de ' + currentResult.score + ' sur 100 pour ' + eur(currentResult.total) + ', soit ' + eur(currentResult.total / S.people) + ' par participant.' : 'Revenez à l\'étape précédente et lancez l\'optimisation automatique : elle trouvera la meilleure combinaison qui rentre.' }}</p>
+      <div style="margin-top:14px;display:flex;gap:9px;justify-content:center;flex-wrap:wrap" id="r-chips">
+        <span class="chip" [class.gain]="currentResult.total - startResult.total <= 0" [class.risk]="currentResult.total - startResult.total > 0">{{ currentResult.total - startResult.total <= 0 ? '−' : '+' }}{{ eur(Math.abs(currentResult.total - startResult.total)) }} face au départ</span>
+        <span class="chip" [class.gain]="currentResult.score - startResult.score >= 0" [class.risk]="currentResult.score - startResult.score < 0">{{ currentResult.score - startResult.score >= 0 ? '+' : '−' }}{{ Math.abs(currentResult.score - startResult.score) }} pts de satisfaction</span>
+        <span class="chip ai">{{ S.people }} participants · {{ S.days }} jour{{ S.days > 1 ? 's' : '' }}</span>
+      </div>
+    </div>
+    
+    <div class="card mt">
+      <div class="compare">
+        <div class="col"><h4>Votre point de départ</h4>
+          <div class="line"><span class="muted">Coût total</span><b class="n">{{ eur(startResult.total) }}</b></div>
+          <div class="line"><span class="muted">Satisfaction</span><b class="n">{{ startResult.score }} / 100</b></div>
+          <div class="line"><span class="muted">Par participant</span><b class="n">{{ eur(startResult.total / S.people) }}</b></div></div>
+        <div class="arrow"><svg viewBox="0 0 24 24" width="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        <div class="col win"><h4>Votre choix final</h4>
+          <div class="line"><span class="muted">Coût total</span><b class="n">{{ eur(currentResult.total) }}</b></div>
+          <div class="line"><span class="muted">Satisfaction</span><b class="n">{{ currentResult.score }} / 100</b></div>
+          <div class="line"><span class="muted">Par participant</span><b class="n">{{ eur(currentResult.total / S.people) }}</b></div></div>
+      </div>
+    </div>
+    
+    <div class="card mt">
+      <h3 style="font-size:16px;font-weight:600;margin-bottom:12px">Le détail de votre événement</h3>
+      <div id="r-lines">
+        <div class="srow" *ngFor="let p of POSTES">
+          <span>{{ p.label }} — {{ p.options[S.choice[p.id]].n }}</span>
+          <b>{{ eur(getCostOf(p, S.choice[p.id])) }}</b>
+        </div>
+        <div class="srow"><span><b>Total</b></span><b>{{ eur(currentResult.total) }}</b></div>
+      </div>
+    </div>
+    
+    <div class="grid g2 mt">
+      <button class="btn btn-ai btn-lg">Demander un devis</button>
+      <button class="btn btn-lg">Télécharger le récapitulatif</button>
+    </div>
+    <div class="navb">
+      <button class="btn" (click)="goToStep(2)">Modifier mes choix</button>
+      <span class="tiny muted" style="align-self:center">Estimations basées sur 612 événements comparables. Aucun engagement.</span>
+    </div>
+  </div>
+</div>
