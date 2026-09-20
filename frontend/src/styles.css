@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /* ===========================================================
    EVENTTWIN — application complète
    Clair et simple par défaut. Le dégradé ne sert qu'à l'IA.
@@ -417,3 +418,19 @@ body[data-role="admin"] .only-client{display:none!important}
   .step span{display:none}.step{padding:8px}
 }
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+=======
+html, body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f7fb;
+  color: #1d2736;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+>>>>>>> 1b70897d7cd6a1b40d3e0aee0be0bcd992b20975

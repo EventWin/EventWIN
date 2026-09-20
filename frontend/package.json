@@ -18,6 +18,7 @@
     "@angular/router": "^18.2.0",
     "rxjs": "~7.6.0",
     "tslib": "^2.6.2",
+<<<<<<< HEAD
     "zone.js": "~0.14.10"
   },
   "devDependencies": {
@@ -30,6 +31,20 @@
     "karma-chrome-launcher": "~3.1.0",
     "karma-coverage": "~2.0.0",
     "karma-jasmine": "~5.0.0",
+=======
+    "zone.js": "~0.0.0"
+  },
+  "devDependencies": {
+    "@angular/cli": "^18.2.0",
+    "@angular/compiler-cli": "^18.2.0",
+    "typescript": "~5.4.0",
+    "@types/node": "^20.12.12",
+    "karma": "~6.0.0",
+    "karma-chrome-launcher": "~3.1.0",
+    "karma-coverage": "~2.0.0",
+    "karma-jasmine": "~5.0.0",
+    "jasmine-core": "~5.0.0",
+>>>>>>> 1b70897d7cd6a1b40d3e0aee0be0bcd992b20975
     "typescript": "~5.4.0"
   }
 }
