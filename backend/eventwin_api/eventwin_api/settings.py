@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'apps.participants',
     'apps.budgets',
     'apps.simulation',
+    'apps.transport',
     'apps.ai',
 ]
 
