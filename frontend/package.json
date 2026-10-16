@@ -17,6 +17,7 @@
     "@angular/platform-browser-dynamic": "^18.2.0",
     "@angular/router": "^18.2.0",
     "rxjs": "~7.6.0",
+    "three": "^0.169.0",
     "tslib": "^2.6.2",
     "zone.js": "~0.14.10"
   },
@@ -25,6 +26,7 @@
     "@angular/cli": "^18.2.0",
     "@angular/compiler-cli": "^18.2.0",
     "@types/node": "^20.12.12",
+    "@types/three": "^0.169.0",
     "jasmine-core": "~5.0.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.1.0",

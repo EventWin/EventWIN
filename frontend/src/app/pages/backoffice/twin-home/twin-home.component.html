@@ -1,0 +1,426 @@
+<!-- ============ Loading / error ============ -->
+<div class="tw-state" *ngIf="state === 'loading'">
+  <div class="tw-spinner" aria-hidden="true"></div>
+  <p>Chargement de vos événements…</p>
+</div>
+
+<div class="tw-state" *ngIf="state === 'error'">
+  <div class="tw-state-ico risk">!</div>
+  <h2>Jumeau indisponible</h2>
+  <p>{{ errorMessage }}</p>
+  <button class="btn btn-ai" (click)="loadEvents()">Réessayer</button>
+</div>
+
+<!-- ============ Case B: no event ============ -->
+<section class="tw-empty" *ngIf="state === 'empty'">
+  <div class="tw-empty-copy">
+    <span class="chip ai">Jumeau numérique</span>
+    <h1>Répétez votre événement <span>avant qu'il n'existe</span>.</h1>
+    <p class="lede">EventTwin construit une représentation prédictive de votre événement — lieu ou véhicules, participants, ressources, contraintes — pour simuler son organisation avant la date et repérer les risques avant d'engager votre budget.</p>
+    <div class="tw-empty-acts">
+      <button class="btn btn-ai btn-lg" (click)="openCreate()">Créer mon premier événement</button>
+      <button class="btn btn-lg" (click)="showExplainer = !showExplainer" [attr.aria-expanded]="showExplainer">Comment fonctionne un jumeau ?</button>
+    </div>
+    <ol class="tw-explainer" *ngIf="showExplainer">
+      <li><b>Modéliser.</b> Le type d'événement détermine la scène : salle, sièges et ressources pour une conférence ; autocars, places et itinéraire pour un road trip.</li>
+      <li><b>Peupler.</b> Les participants rattachés apparaissent dans la scène avec leurs préférences et contraintes déclarées.</li>
+      <li><b>Évaluer.</b> Des règles transparentes calculent la capacité, l'adéquation participant-événement et les risques. Aucun modèle d'IA entraîné n'est utilisé à ce stade.</li>
+      <li><b>Comparer.</b> Testez des scénarios (flotte, capacité) et appliquez celui qui vous convient.</li>
+    </ol>
+  </div>
+  <div class="tw-empty-visual" aria-hidden="true">
+    <div class="tw-iso">
+      <div class="tw-iso-floor"></div>
+      <div class="tw-iso-stage"></div>
+      <div class="tw-iso-row" *ngFor="let r of [0,1,2,3]" [style.--r]="r"><i *ngFor="let s of [0,1,2,3,4,5]"></i></div>
+    </div>
+    <small>Aperçu illustratif — votre scène sera générée à partir de vos données.</small>
+  </div>
+</section>
+
+<!-- ============ Case A / C: command center ============ -->
+<ng-container *ngIf="state === 'ready' && event">
+  <header class="tw-head">
+    <div class="tw-head-main">
+      <label class="tw-select">
+        <span class="sr">Événement</span>
+        <select [ngModel]="event.id" (ngModelChange)="onEventChange($event)" aria-label="Choisir l'événement">
+          <option *ngFor="let e of events" [value]="e.id">{{ e.name }}</option>
+        </select>
+      </label>
+      <h1 class="title">{{ event.name }}</h1>
+      <div class="tw-meta">
+        <span>{{ typeLabels[event.event_type] || event.event_type }}</span>
+        <span>{{ dateRange(event) }} <b *ngIf="daysUntil(event)">· {{ daysUntil(event) }}</b></span>
+        <span *ngIf="event.location">{{ event.location }}</span>
+        <span class="chip">{{ statusLabel(event.status) }}</span>
+        <span class="chip ai" title="Version = nombre de scénarios enregistrés">Jumeau {{ simulationVersion }}</span>
+        <span class="muted" *ngIf="source">calculé à {{ source.loadedAt | date:'HH:mm' }}</span>
+      </div>
+    </div>
+    <div class="acts">
+      <a class="btn btn-sm" routerLink="/app/events" [queryParams]="{ edit: event.id }">Modifier</a>
+      <button class="btn btn-sm" (click)="openCreate()">Nouvel événement</button>
+      <button class="btn btn-ai btn-sm" (click)="refreshTwin()" [disabled]="twinLoading">{{ twinLoading ? 'Calcul…' : 'Recalculer le jumeau' }}</button>
+    </div>
+  </header>
+
+  <div class="tw-provenance" role="note">
+    <span><i class="dot real"></i>Données réelles (API)</span>
+    <span><i class="dot sim"></i>Affectations proposées — simulation non enregistrée</span>
+    <span><i class="dot calc"></i>{{ engineLabel }} — pas de modèle d'IA entraîné</span>
+    <span *ngIf="source?.partial?.length" class="warn">Sources indisponibles : {{ source?.partial?.join(', ') }}</span>
+  </div>
+
+  <div class="tw-alert" *ngIf="twinError">{{ twinError }} <button class="link" (click)="refreshTwin()">Réessayer</button></div>
+
+  <!-- Main: viewport + context panel -->
+  <div class="tw-main">
+    <div class="tw-stage card">
+      <div class="tw-viewport" #viewport>
+        <div class="tw-overlay-loading" *ngIf="twinLoading && !baseline"><div class="tw-spinner"></div></div>
+      </div>
+
+      <div class="tw-toolbar top-left">
+        <div class="tw-seg layers" role="group" aria-label="Calques">
+          <button *ngFor="let l of availableLayers" [attr.aria-pressed]="layers[l.key]" (click)="toggleLayer(l.key)">{{ l.label }}</button>
+        </div>
+      </div>
+      <div class="tw-toolbar top-right">
+        <div class="tw-seg" role="group" aria-label="Caméra">
+          <button (click)="camera('overview')" title="Vue d'ensemble">Ensemble</button>
+          <button (click)="camera('top')" title="Vue de dessus">Dessus</button>
+          <button (click)="camera('inside')" [title]="isTransport ? 'Dans le premier véhicule' : 'Depuis la scène'">{{ isTransport ? 'Intérieur' : 'Scène' }}</button>
+          <button (click)="clearSelection(); camera('overview')" title="Réinitialiser la caméra">↺</button>
+        </div>
+      </div>
+      <div class="tw-toolbar bottom-left">
+        <div class="tw-legend">
+          <span><i style="background:#0FA97D"></i>Adéquation ≥ 75</span>
+          <span><i style="background:#E0940B"></i>50–74</span>
+          <span><i style="background:#E8455F"></i>&lt; 50</span>
+          <span><i style="background:#9AA3BF"></i>Données insuffisantes</span>
+          <span><i class="ring"></i>Besoin d'accessibilité</span>
+        </div>
+      </div>
+      <div class="tw-toolbar bottom-right" *ngIf="scenarioDirty">
+        <div class="tw-seg" role="group" aria-label="Version affichée">
+          <button [attr.aria-pressed]="!viewScenario" (click)="setView(false)">Référence</button>
+          <button [attr.aria-pressed]="viewScenario" (click)="setView(true)">Scénario</button>
+        </div>
+      </div>
+      <div class="tw-hint">Glisser pour pivoter · molette pour zoomer · clic droit pour déplacer · clic pour sélectionner</div>
+    </div>
+
+    <!-- Context panel -->
+    <aside class="tw-panel card" aria-live="polite">
+      <!-- Participant -->
+      <ng-container *ngIf="selectedAttendee as a">
+        <div class="tw-panel-head">
+          <div class="who"><i>{{ initials(a.name) }}</i><div><b>{{ a.name }}</b><small>{{ a.email || 'e-mail non renseigné' }}</small></div></div>
+          <button class="ico-btn" (click)="clearSelection()" aria-label="Fermer">×</button>
+        </div>
+        <div class="tw-score">
+          <div class="tw-score-val" [style.color]="scoreColor(a.fit.score)">{{ a.fit.score ?? '—' }}<sup *ngIf="a.fit.score !== null">/100</sup></div>
+          <div>
+            <b>Adéquation à l'événement</b>
+            <small *ngIf="a.fit.score === null">Pas assez de données déclarées pour estimer un score.</small>
+            <small *ngIf="a.fit.score !== null">Confiance {{ pct(a.fit.confidence) }} · {{ a.fit.hasMismatch ? 'incompatibilité logistique détectée' : 'aucune incompatibilité détectée' }}</small>
+          </div>
+        </div>
+        <p class="tw-note">Mesure l'adéquation entre l'événement prévu et les préférences déclarées — jamais la valeur de la personne.</p>
+        <dl class="tw-facts">
+          <div><dt>Statut</dt><dd>{{ attendanceLabel(a.attendanceStatus) }}</dd></div>
+          <div><dt>Place proposée</dt><dd>{{ seatLabel(a) }} <span class="chip sim">simulée</span></dd></div>
+          <div *ngIf="a.diet"><dt>Régime</dt><dd>{{ a.diet }}</dd></div>
+          <div *ngIf="a.needsAccessibility"><dt>Accessibilité</dt><dd>Besoin déclaré</dd></div>
+        </dl>
+        <h4 class="tw-sub">Facteurs</h4>
+        <ul class="tw-factors">
+          <li *ngFor="let f of a.fit.factors" [class]="factorClass(f.status)">
+            <div class="tw-factor-top"><b>{{ f.label }}</b><span class="chip" [ngClass]="factorClass(f.status)">{{ factorStatusLabel(f.status) }}</span><small>poids {{ f.weight }}</small></div>
+            <p>{{ f.detail }}</p>
+            <p class="tw-reco-line" *ngIf="f.recommendation">→ {{ f.recommendation }}</p>
+          </li>
+        </ul>
+        <a class="btn btn-sm" routerLink="/app/participants" [queryParams]="{ event: event.id, participant: a.participantId }">Fiche participant</a>
+      </ng-container>
+
+      <!-- Vehicle -->
+      <ng-container *ngIf="selectedVehicle as v">
+        <div class="tw-panel-head">
+          <div><b class="tw-panel-title">{{ v.label }}</b><small class="muted">{{ v.kind === 'vip' ? 'Configuration 2+1' : 'Configuration 2+2' }}</small></div>
+          <button class="ico-btn" (click)="clearSelection()" aria-label="Fermer">×</button>
+        </div>
+        <div class="tw-meter"><div [style.width.%]="(v.passengers.length / v.capacity) * 100"></div></div>
+        <p class="n"><b>{{ v.passengers.length }}</b> / {{ v.capacity }} places occupées <span class="chip sim">affectation simulée</span></p>
+        <ul class="tw-list">
+          <li *ngFor="let p of v.passengers" (click)="selectAttendee(p)" tabindex="0" (keydown.enter)="selectAttendee(p)">
+            <span class="tw-dot" [style.background]="scoreColor(p.fit.score)"></span>{{ p.name }}<small>{{ p.fit.score ?? '—' }}</small>
+          </li>
+          <li class="muted" *ngIf="!v.passengers.length">Aucun passager affecté.</li>
+        </ul>
+        <a class="btn btn-sm" routerLink="/app/events" [queryParams]="{ edit: event.id }">Modifier la flotte</a>
+      </ng-container>
+
+      <!-- Room -->
+      <ng-container *ngIf="selectedRoom as r">
+        <div class="tw-panel-head">
+          <div><b class="tw-panel-title">{{ r.name }}</b><small class="muted">Ressource « {{ r.type }} »</small></div>
+          <button class="ico-btn" (click)="clearSelection()" aria-label="Fermer">×</button>
+        </div>
+        <p>Capacité déclarée : <b>{{ r.capacity }}</b> places.</p>
+        <p class="tw-note">Les sessions par salle ne sont pas encore modélisées : l'affectation se fait à la salle principale.</p>
+        <a class="btn btn-sm" routerLink="/app/budgets" [queryParams]="{ event: event.id }">Ressources</a>
+      </ng-container>
+
+      <!-- Zones -->
+      <ng-container *ngIf="selectedZone as z">
+        <div class="tw-panel-head">
+          <b class="tw-panel-title">{{ z === 'overflow' ? 'Personnes sans place' : z === 'catering' ? 'Restauration' : z === 'stage' ? 'Scène' : z === 'pickup' ? 'Point de départ' : 'Arrivée' }}</b>
+          <button class="ico-btn" (click)="clearSelection()" aria-label="Fermer">×</button>
+        </div>
+        <ng-container *ngIf="z === 'overflow'">
+          <p>{{ overflowAttendees.length }} personne(s) sans place dans la configuration affichée.</p>
+          <ul class="tw-list">
+            <li *ngFor="let p of overflowAttendees" (click)="selectAttendee(p)" tabindex="0" (keydown.enter)="selectAttendee(p)"><span class="tw-dot" [style.background]="scoreColor(p.fit.score)"></span>{{ p.name }}</li>
+          </ul>
+        </ng-container>
+        <p *ngIf="z === 'pickup'">{{ event.location || 'Point de départ non renseigné.' }}</p>
+        <p *ngIf="z === 'destination'">{{ event.route_or_logistics_notes || 'Itinéraire non détaillé. Renseignez-le dans l\'événement.' }}</p>
+        <p *ngIf="z === 'stage'">{{ event.objective || 'Objectif de l\'événement non renseigné.' }}</p>
+        <p *ngIf="z === 'catering'">Ressource(s) de restauration enregistrée(s) pour cet événement.</p>
+      </ng-container>
+
+      <!-- Default: event summary -->
+      <ng-container *ngIf="!selection && displayed as m">
+        <b class="tw-panel-title">État simulé</b>
+        <p class="muted small">Cliquez un participant, un véhicule ou une salle dans la scène.</p>
+        <dl class="tw-facts">
+          <div><dt>Scène</dt><dd>{{ m.kind === 'transport' ? 'Transport de groupe' : 'Lieu & salle' }}</dd></div>
+          <div *ngIf="m.transport"><dt>Flotte</dt><dd>{{ m.transport.vehicles.length }} véhicule(s) · {{ m.transport.totalSeats }} places</dd></div>
+          <div *ngIf="m.venue"><dt>Salle principale</dt><dd>{{ m.venue.hallCapacity }} places <small class="muted">({{ m.venue.capacitySource === 'resource' ? 'ressource déclarée' : 'déduite de la cible' }})</small></dd></div>
+          <div><dt>Participants rattachés</dt><dd>{{ m.attendees.length }}</dd></div>
+          <div><dt>Prévus</dt><dd>{{ event.participant_expected || '—' }}</dd></div>
+          <div><dt>Accessibilité</dt><dd>{{ event.accessibility_level }}</dd></div>
+        </dl>
+        <div class="tw-top-risk" *ngIf="m.recommendations[0] as r" [ngClass]="r.severity">
+          <small>Priorité n°1</small>
+          <b>{{ r.title }}</b>
+          <button class="link" (click)="expandedRec = r.id; inspectRec(r)">Voir dans la scène</button>
+        </div>
+        <button class="btn btn-sm" (click)="openLink()">Rattacher des participants</button>
+      </ng-container>
+    </aside>
+  </div>
+
+  <!-- KPIs -->
+  <div class="tw-kpis" *ngIf="displayed as m">
+    <div class="stat">
+      <div class="lab">Participants rattachés</div>
+      <div class="val n">{{ m.kpis.registered }}<sup *ngIf="m.kpis.target">/{{ m.kpis.target }}</sup></div>
+      <div class="foot"><a class="link" routerLink="/app/participants" [queryParams]="{ event: event.id }">Gérer</a></div>
+    </div>
+    <div class="stat">
+      <div class="lab">Complétude des données</div>
+      <div class="val n">{{ m.kpis.registered ? pct(m.kpis.completeness) : '—' }}</div>
+      <div class="foot">part des facteurs évaluables</div>
+    </div>
+    <div class="stat lit">
+      <div class="lab">Adéquation moyenne</div>
+      <div class="val n">{{ m.kpis.avgFit ?? '—' }}<sup *ngIf="m.kpis.avgFit !== null">/100</sup></div>
+      <div class="foot">{{ m.kpis.scoredCount }} score(s) · confiance {{ pct(m.kpis.avgConfidence) }}</div>
+    </div>
+    <div class="stat">
+      <div class="lab">{{ m.kind === 'transport' ? 'Occupation des véhicules' : 'Occupation de la salle' }}</div>
+      <div class="val n">{{ pct(m.kpis.utilization) }}</div>
+      <div class="foot">{{ m.kpis.capacity }} places · demande = max(rattachés, prévus)</div>
+    </div>
+    <div class="stat">
+      <div class="lab">Budget</div>
+      <div class="val n tw-money">{{ m.kpis.plannedBudget ? fmtEur(m.kpis.plannedBudget) : fmtEur(m.kpis.targetBudget) }}</div>
+      <div class="foot">{{ m.kpis.plannedBudget ? 'planifié · cible ' + fmtEur(m.kpis.targetBudget) : 'cible (aucun budget détaillé)' }}<span *ngIf="m.kpis.committed"> · engagé {{ fmtEur(m.kpis.committed) }}</span></div>
+    </div>
+    <div class="stat">
+      <div class="lab">Points ouverts</div>
+      <div class="val n">{{ m.recommendations.length }}</div>
+      <div class="foot"><span [class.risk-t]="riskCount(m)">{{ riskCount(m) }} risque(s) bloquant(s)</span></div>
+    </div>
+  </div>
+  <p class="tw-note center">La satisfaction prévue n'est pas affichée : l'application ne dispose pas encore d'une méthode défendable pour l'estimer.</p>
+
+  <!-- Recommendations + scenario -->
+  <div class="tw-grid2">
+    <section class="card">
+      <div class="card-head"><h3>Risques & recommandations</h3><p>{{ engineLabel }} · calculés à partir des données réelles</p></div>
+      <div class="tw-recs" *ngIf="baseline">
+        <article *ngFor="let r of baseline.recommendations" class="tw-rec" [ngClass]="r.severity" [class.open]="expandedRec === r.id">
+          <button class="tw-rec-head" (click)="toggleRec(r)" [attr.aria-expanded]="expandedRec === r.id">
+            <span class="tw-sev">{{ r.severity === 'risk' ? 'Risque' : r.severity === 'warn' ? 'Attention' : 'Info' }}</span>
+            <b>{{ r.title }}</b>
+            <span class="tw-chev">▾</span>
+          </button>
+          <div class="tw-rec-body" *ngIf="expandedRec === r.id">
+            <dl>
+              <div><dt>Pourquoi</dt><dd>{{ r.why }}</dd></div>
+              <div><dt>Concernés</dt><dd>{{ r.affected }}</dd></div>
+              <div><dt>Intervention</dt><dd>{{ r.action }}</dd></div>
+              <div><dt>Impact attendu</dt><dd>{{ r.impact }}</dd></div>
+            </dl>
+            <div class="row-actions">
+              <button class="btn btn-sm" (click)="inspectRec(r)" *ngIf="r.affectedIds.length || r.id === 'seat-gap' || r.id === 'hall-capacity'">{{ emphasisedRec === r.id ? 'Retirer la mise en évidence' : 'Voir dans la scène' }}</button>
+              <button class="btn btn-sm btn-ai" (click)="testRec(r)" *ngIf="r.scenario">Tester le scénario</button>
+              <a class="btn btn-sm" *ngIf="r.route" [routerLink]="r.route" [queryParams]="{ event: event.id, edit: r.route === '/app/events' ? event.id : null }">{{ r.routeLabel }}</a>
+            </div>
+          </div>
+        </article>
+        <div class="empty" *ngIf="!baseline.recommendations.length">Aucun risque détecté par les règles actuelles.</div>
+      </div>
+    </section>
+
+    <section class="card" id="scenario">
+      <div class="card-head"><h3>Comparer un scénario</h3><p>Référence = configuration enregistrée</p></div>
+      <ng-container *ngIf="params">
+        <div class="tw-params" *ngIf="isTransport">
+          <div class="tw-param" *ngFor="let p of [
+            { key: 'bus_standard_count', label: 'Autocars', cap: event.bus_standard_capacity },
+            { key: 'bus_mini_count', label: 'Minibus', cap: event.bus_mini_capacity },
+            { key: 'bus_vip_count', label: 'VIP', cap: event.bus_vip_capacity }]">
+            <span>{{ p.label }} <small>{{ p.cap }} pl.</small></span>
+            <div class="tw-stepper">
+              <button (click)="step($any(p.key), -1)" aria-label="Retirer">−</button>
+              <b class="n">{{ $any(params)[p.key] }}</b>
+              <button (click)="step($any(p.key), 1)" aria-label="Ajouter">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="tw-params" *ngIf="!isTransport">
+          <div class="tw-param wide">
+            <span>Capacité de la salle principale</span>
+            <input type="range" min="10" max="600" step="5" [(ngModel)]="params.hall_capacity" (ngModelChange)="onParamsChange()" aria-label="Capacité de la salle">
+            <b class="n">{{ params.hall_capacity }}</b>
+          </div>
+        </div>
+        <table class="tw-compare">
+          <thead><tr><th>Indicateur</th><th>Référence</th><th>Scénario</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let m of metrics">
+              <td>{{ m.label }}</td>
+              <td class="n">{{ m.baseline }}</td>
+              <td class="n" [class.better]="m.better === true" [class.worse]="m.better === false">{{ m.scenario }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="tw-note">Différences calculées par les mêmes règles que la référence. Coûts non estimés : aucun tarif véhicule/salle en base. Ce n'est pas une optimisation automatique.</p>
+        <div class="row-actions">
+          <button class="btn btn-sm" (click)="setView(!viewScenario)" [disabled]="!scenarioDirty">{{ viewScenario ? 'Afficher la référence' : 'Afficher dans la scène' }}</button>
+          <button class="btn btn-sm" (click)="resetScenario()" [disabled]="!scenarioDirty">Réinitialiser</button>
+          <button class="btn btn-sm" (click)="saveScenario()" [disabled]="!scenarioDirty || scenarioBusy">Enregistrer</button>
+          <button class="btn btn-sm btn-ai" (click)="applyScenario()" [disabled]="!scenarioDirty || scenarioBusy">Appliquer à l'événement</button>
+          <a class="btn btn-sm" routerLink="/app/optim" [queryParams]="{ event: event.id }">Optimiser</a>
+        </div>
+        <p class="tw-notice" *ngIf="scenarioNotice">{{ scenarioNotice }}</p>
+      </ng-container>
+    </section>
+  </div>
+
+  <!-- Participants in the twin -->
+  <section class="card mt">
+    <div class="card-head">
+      <h3>Participants dans le jumeau</h3>
+      <p>{{ displayed?.attendees?.length || 0 }} rattaché(s)</p>
+      <div class="acts">
+        <button class="btn btn-sm" (click)="showWeights = !showWeights" [attr.aria-expanded]="showWeights">Pondération du score</button>
+        <button class="btn btn-sm btn-ai" (click)="openLink()">Rattacher des participants</button>
+      </div>
+    </div>
+
+    <div class="tw-weights" *ngIf="showWeights">
+      <p class="tw-note">Poids relatifs des facteurs (calcul déterministe). Les facteurs sans donnée sont exclus du score et réduisent la confiance.</p>
+      <div class="tw-weight" *ngFor="let k of factorKeys">
+        <label [for]="'w-' + k">{{ factorLabels[k] }}</label>
+        <input [id]="'w-' + k" type="range" min="0" max="40" step="5" [(ngModel)]="weights[k]" (ngModelChange)="onWeightsChange()">
+        <b class="n">{{ weights[k] }}</b>
+      </div>
+      <button class="btn btn-sm" (click)="resetWeights()">Poids par défaut</button>
+    </div>
+
+    <div class="tw-att-tools" *ngIf="displayed?.attendees?.length">
+      <input class="in" placeholder="Rechercher un participant" [(ngModel)]="attendeeQuery" aria-label="Rechercher un participant">
+      <select class="in" [(ngModel)]="attendeeSort" aria-label="Trier">
+        <option value="fit">Adéquation (faible d'abord)</option>
+        <option value="confidence">Données (incomplètes d'abord)</option>
+        <option value="name">Nom</option>
+      </select>
+    </div>
+    <div class="tw">
+      <table *ngIf="displayed?.attendees?.length; else noAttendees">
+        <thead><tr><th>Participant</th><th>Adéquation</th><th>Confiance</th><th>Facteurs bloquants</th><th>Place proposée</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let a of attendees" (click)="selectAttendee(a)" [class.sel]="selection?.kind === 'participant' && selection?.id === a.participantId" tabindex="0" (keydown.enter)="selectAttendee(a)">
+            <td><div class="who"><i>{{ initials(a.name) }}</i><div><b>{{ a.name }}</b><small>{{ a.email }}</small></div></div></td>
+            <td><b class="n" [style.color]="scoreColor(a.fit.score)">{{ a.fit.score ?? '—' }}</b><small class="muted" *ngIf="a.fit.score === null"> données insuffisantes</small></td>
+            <td class="n">{{ pct(a.fit.confidence) }}</td>
+            <td>
+              <span class="chip risk" *ngFor="let f of mismatches(a)">{{ f.label }}</span>
+              <span class="muted" *ngIf="!a.fit.hasMismatch">—</span>
+            </td>
+            <td>{{ seatLabel(a) }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noAttendees>
+        <div class="empty">Aucun participant rattaché. <button class="link" (click)="openLink()">Rattacher des participants existants</button> pour peupler le jumeau.</div>
+      </ng-template>
+    </div>
+  </section>
+</ng-container>
+
+<!-- ============ Create event dialog ============ -->
+<div class="tw-modal" *ngIf="createOpen" role="dialog" aria-modal="true" aria-labelledby="create-title" (keydown.escape)="closeCreate()">
+  <div class="tw-modal-card card">
+    <div class="card-head"><h3 id="create-title">Nouvel événement</h3><p>Initialise l'événement et son jumeau</p></div>
+    <form (ngSubmit)="submitCreate()" novalidate>
+      <div class="tw-form">
+        <div class="field full"><label for="c-name">Nom *</label><input id="c-name" class="in" name="name" [(ngModel)]="form.name" required autofocus></div>
+        <div class="field"><label for="c-type">Type *</label>
+          <select id="c-type" class="in" name="type" [(ngModel)]="form.event_type">
+            <option *ngFor="let t of eventTypes" [value]="t.value">{{ t.label }}</option>
+          </select>
+        </div>
+        <div class="field"><label for="c-exp">Participants prévus</label><input id="c-exp" class="in" type="number" min="0" name="exp" [(ngModel)]="form.participant_expected"></div>
+        <div class="field"><label for="c-start">Date de début *</label><input id="c-start" class="in" type="date" name="start" [(ngModel)]="form.start_date"></div>
+        <div class="field"><label for="c-end">Date de fin</label><input id="c-end" class="in" type="date" name="end" [(ngModel)]="form.end_date"></div>
+        <div class="field full"><label for="c-loc">{{ form.event_type === 'road_trip' ? 'Départ / itinéraire *' : 'Lieu *' }}</label><input id="c-loc" class="in" name="loc" [(ngModel)]="form.location" [placeholder]="form.event_type === 'road_trip' ? 'Lyon → Annecy' : 'Paris, Station F'"></div>
+        <div class="field"><label for="c-budget">Budget initial (€)</label><input id="c-budget" class="in" type="number" min="0" name="budget" [(ngModel)]="form.target_budget"></div>
+        <div class="field" *ngIf="form.event_type === 'road_trip'"><label for="c-bus">Autocars (50 pl.)</label><input id="c-bus" class="in" type="number" min="0" name="bus" [(ngModel)]="form.bus_standard_count"></div>
+      </div>
+      <ul class="tw-errors" *ngIf="createTouched && formErrors.length"><li *ngFor="let e of formErrors">{{ e }}</li></ul>
+      <p class="tw-errors" *ngIf="createError">{{ createError }}</p>
+      <p class="tw-note">Formulaire complet (format, accessibilité, logistique) disponible dans <a class="link" routerLink="/app/events" (click)="closeCreate()">Événements</a>.</p>
+      <div class="form-actions">
+        <button type="button" class="btn" (click)="closeCreate()">Annuler</button>
+        <button type="submit" class="btn btn-ai" [disabled]="createBusy">{{ createBusy ? 'Création…' : 'Créer et ouvrir le jumeau' }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ Link participants dialog ============ -->
+<div class="tw-modal" *ngIf="linkOpen" role="dialog" aria-modal="true" aria-labelledby="link-title" (keydown.escape)="linkOpen = false">
+  <div class="tw-modal-card card">
+    <div class="card-head"><h3 id="link-title">Rattacher des participants</h3><p>Comptes participants existants</p></div>
+    <ul class="tw-pick" *ngIf="linkable.length; else noneLinkable">
+      <li *ngFor="let p of linkable">
+        <label><input type="checkbox" [checked]="linkChoice.has(p.id)" (change)="toggleLink(p.id)">
+          <span><b>{{ p.full_name }}</b><small>{{ p.email }} · {{ p.preferences.length + p.constraints.length }} réponse(s) au questionnaire</small></span></label>
+      </li>
+    </ul>
+    <ng-template #noneLinkable><div class="empty">Aucun autre participant disponible. Les participants s'inscrivent via <b>/participant-register</b>.</div></ng-template>
+    <p class="tw-errors" *ngIf="linkError">{{ linkError }}</p>
+    <div class="form-actions">
+      <button class="btn" (click)="linkOpen = false">Annuler</button>
+      <button class="btn btn-ai" (click)="confirmLink()" [disabled]="!linkChoice.size || linkBusy">{{ linkBusy ? 'Rattachement…' : 'Rattacher (' + linkChoice.size + ')' }}</button>
+    </div>
+  </div>
+</div>
