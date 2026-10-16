@@ -41,7 +41,7 @@ export class OrganizerLoginComponent {
         this.router.navigate(['/app/home']);
       },
       error: (err: any) => {
-        this.errorMessage = 'Identifiants incorrects.';
+        this.errorMessage = this.participantService.loginErrorMessage(err);
       }
     });
   }
