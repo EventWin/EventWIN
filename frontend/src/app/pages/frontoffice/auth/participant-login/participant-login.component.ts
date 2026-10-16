@@ -42,7 +42,7 @@ export class ParticipantLoginComponent {
         }
       },
       error: (err: any) => {
-        this.errorMessage = err?.error?.error || 'Identifiants incorrects.';
+        this.errorMessage = this.participantService.loginErrorMessage(err);
       }
     });
   }

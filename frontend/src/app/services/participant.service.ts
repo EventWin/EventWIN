@@ -10,6 +10,14 @@ export class ParticipantService {
 
   constructor(private http: HttpClient) {}
 
+  loginErrorMessage(err: any): string {
+    // Proxy returns 0/502/504 (or a non-JSON 500) when the Django API is not running
+    if (!err?.status || err.status >= 500) {
+      return 'Serveur API injoignable. Vérifiez que le backend tourne sur http://127.0.0.1:8000.';
+    }
+    return err?.error?.error || 'Identifiants incorrects.';
+  }
+
   login(email: string, password?: string): Observable<any> {
     return this.http.post(`${this.apiUrl}login/`, { email, password });
   }
