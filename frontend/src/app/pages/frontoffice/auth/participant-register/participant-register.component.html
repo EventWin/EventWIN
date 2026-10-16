@@ -1,0 +1,47 @@
+<div class="auth">
+  <div class="auth-story">
+    <div class="logo" style="margin-bottom: 30px; text-align: left;">
+      <img src="/assets/images/logo-eventtwin.png" alt="EventTwin Logo" style="height: 100px;">
+    </div>
+    <div style="margin-top: 40px;">
+      <h1 class="auth-head">Créez votre profil <span>Participant</span>.</h1>
+      <p class="auth-sub">En vous inscrivant, vous permettez aux organisateurs de prendre en compte vos besoins (transports, repas, attentes).</p>
+    </div>
+    <div class="stage" style="margin-top: 40px; display: flex; justify-content: center;">
+      <img src="/assets/images/mascot.svg" alt="Twin Mascot" width="320" height="320">
+    </div>
+  </div>
+  <div class="auth-panel">
+    <div class="auth-card">
+      <h2>Création de compte</h2>
+      <p>Rejoignez votre événement en quelques secondes.</p>
+      
+      <div class="field">
+        <label for="rg-name">Nom complet</label>
+        <input class="in" id="rg-name" type="text" [(ngModel)]="fullName" placeholder="Prénom Nom" autocomplete="name">
+      </div>
+      
+      <div class="field">
+        <label for="rg-mail">Adresse e-mail</label>
+        <input class="in" id="rg-mail" type="email" [(ngModel)]="email" placeholder="votre.email@entreprise.com" autocomplete="email">
+      </div>
+      
+      <div class="field" style="position: relative;">
+        <label for="rg-pass">Mot de passe</label>
+        <input class="in" id="rg-pass" [type]="passwordVisible ? 'text' : 'password'" [(ngModel)]="password" placeholder="Votre mot de passe" autocomplete="new-password" style="padding-right: 40px;">
+        <span (click)="passwordVisible = !passwordVisible" style="position: absolute; right: 12px; bottom: 12px; cursor: pointer; color: #5A6183; display: flex;">
+          <svg *ngIf="!passwordVisible" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg *ngIf="passwordVisible" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+        </span>
+      </div>
+      
+      <p class="error" style="color: #ff4d4d; font-weight: bold; margin-bottom: 15px;" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+      <button class="btn btn-ai btn-lg" (click)="onRegister()">Créer mon profil</button>
+      
+      <div class="sep">ou</div>
+      
+      <p class="alt">Déjà inscrit ? <a class="link" routerLink="/participant-login">Se connecter</a></p>
+    </div>
+  </div>
+</div>

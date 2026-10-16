@@ -1,0 +1,262 @@
+<div class="onboarding-page">
+  <div class="onboarding-card card">
+    
+    <!-- Progress -->
+    <div class="o-progress">
+      <div class="o-bar" [style.width]="(step / totalSteps) * 100 + '%'"></div>
+    </div>
+
+    <!-- Step 0: Intro -->
+    <div *ngIf="step === 0" class="step-view text-center">
+      <div class="icon-pulse">✨</div>
+      <h1>Votre Profil EventTwin</h1>
+      <p>Pour vous proposer une expérience 100% personnalisée (repas, accès, budget, réseau), nous avons 20 petites questions.</p>
+      <button class="btn btn-lg btn-ai mt-l" (click)="nextStep()">Démarrer le Quiz</button>
+    </div>
+
+    <!-- Step 1: Alimentation -->
+    <div *ngIf="step === 1" class="step-view">
+      <h1>Restauration 🍽️</h1>
+      
+      <div class="mt">
+        <label>1. Régime alimentaire principal</label>
+        <select class="in mt-s" [(ngModel)]="answers.food">
+          <option value="">Sélectionnez...</option>
+          <option value="Aucun">Je mange de tout</option>
+          <option value="Végétarien">Végétarien</option>
+          <option value="Vegan">Vegan</option>
+          <option value="Sans Gluten">Sans Gluten</option>
+          <option value="Halal">Halal</option>
+          <option value="Casher">Casher</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>2. Allergies ou intolérances (Facultatif)</label>
+        <input class="in mt-s" type="text" [(ngModel)]="answers.foodAllergy" placeholder="Ex: Arachides, fruits de mer...">
+      </div>
+
+      <div class="mt">
+        <label>3. Boisson de pause préférée</label>
+        <select class="in mt-s" [(ngModel)]="answers.foodDrink">
+          <option value="">Sélectionnez...</option>
+          <option value="Café">Café ☕</option>
+          <option value="Thé">Thé 🍵</option>
+          <option value="Jus / Soda">Jus de fruits / Soda 🧃</option>
+          <option value="Eau pure">Juste de l'eau 💧</option>
+        </select>
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sm" (click)="prevStep()">Retour</button>
+        <button class="btn btn-ai" [disabled]="!answers.food || !answers.foodDrink" (click)="nextStep()">Suivant</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Mobilité & Transport -->
+    <div *ngIf="step === 2" class="step-view">
+      <h1>Mobilité & Transport 🚆</h1>
+      
+      <div class="mt">
+        <label>4. Besoin d'accessibilité (PMR, etc.)</label>
+        <select class="in mt-s" [(ngModel)]="answers.access">
+          <option value="">Sélectionnez...</option>
+          <option value="Aucun">Aucun besoin particulier</option>
+          <option value="PMR">Mobilité Réduite (PMR)</option>
+          <option value="Visuel/Auditif">Aide visuelle ou auditive</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>5. Moyen de transport envisagé</label>
+        <select class="in mt-s" [(ngModel)]="answers.transport">
+          <option value="">Sélectionnez...</option>
+          <option value="Train">Train 🚆</option>
+          <option value="Avion">Avion ✈️</option>
+          <option value="Voiture (Seul)">Voiture (Seul) 🚗</option>
+          <option value="Covoiturage">Covoiturage 🚙</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>6. Moment d'arrivée prévu</label>
+        <select class="in mt-s" [(ngModel)]="answers.arrivalTime">
+          <option value="">Sélectionnez...</option>
+          <option value="La veille">La veille de l'événement</option>
+          <option value="Matin">Le matin même (Avant 9h)</option>
+          <option value="Midi">En fin de matinée / Midi</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>7. Besoin d'une navette / transfert (Gare/Aéroport) ?</label>
+        <select class="in mt-s" [(ngModel)]="answers.transferNeed">
+          <option value="">Sélectionnez...</option>
+          <option value="Oui">Oui, s'il vous plaît</option>
+          <option value="Non">Non, je me débrouille</option>
+        </select>
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sm" (click)="prevStep()">Retour</button>
+        <button class="btn btn-ai" [disabled]="!answers.access || !answers.transport || !answers.arrivalTime || !answers.transferNeed" (click)="nextStep()">Suivant</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Hébergement & Budget -->
+    <div *ngIf="step === 3" class="step-view">
+      <h1>Hébergement & Budget 🏨</h1>
+      
+      <div class="mt">
+        <label>8. Quel est votre budget MAX global (Hôtel + Déplacements) ?</label>
+        <select class="in mt-s" [(ngModel)]="answers.budget">
+          <option value="">Sélectionnez...</option>
+          <option value="0 - 100€">Moins de 100€</option>
+          <option value="100€ - 300€">Entre 100€ et 300€</option>
+          <option value="300€ - 600€">Entre 300€ et 600€</option>
+          <option value="No Limit">Pas de limite de budget</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>9. Type d'hébergement préféré</label>
+        <select class="in mt-s" [(ngModel)]="answers.accomType">
+          <option value="">Sélectionnez...</option>
+          <option value="Hôtel 4* ou 5*">Hôtel haut de gamme (4* ou 5*)</option>
+          <option value="Hôtel standard">Hôtel standard (2* ou 3*)</option>
+          <option value="Airbnb / Appartement">Airbnb / Appartement</option>
+          <option value="Je n'ai pas besoin de dormir sur place">Pas besoin d'hébergement</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>10. Partage de chambre pour réduire les coûts ?</label>
+        <select class="in mt-s" [(ngModel)]="answers.roomShare">
+          <option value="">Sélectionnez...</option>
+          <option value="Non">Non, chambre individuelle obligatoirement</option>
+          <option value="Oui">Oui, cela ne me dérange pas</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>11. Aurez-vous besoin d'une facture au nom de votre entreprise ?</label>
+        <select class="in mt-s" [(ngModel)]="answers.invoice">
+          <option value="">Sélectionnez...</option>
+          <option value="Oui">Oui</option>
+          <option value="Non">Non (Facture personnelle)</option>
+        </select>
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sm" (click)="prevStep()">Retour</button>
+        <button class="btn btn-ai" [disabled]="!answers.budget || !answers.accomType || !answers.roomShare || !answers.invoice" (click)="nextStep()">Suivant</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Pro & Intérêts -->
+    <div *ngIf="step === 4" class="step-view">
+      <h1>Vos Attentes Pro 💼</h1>
+      
+      <div class="mt">
+        <label>12. Votre objectif principal ici :</label>
+        <select class="in mt-s" [(ngModel)]="answers.goal">
+          <option value="">Sélectionnez...</option>
+          <option value="Apprendre">Me former / Apprendre de nouvelles choses</option>
+          <option value="Réseauter">Trouver des partenaires / Clients / Emploi</option>
+          <option value="Inspiration">Chercher de l'inspiration globale</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>13. Format de contenu préféré :</label>
+        <select class="in mt-s" [(ngModel)]="answers.format">
+          <option value="">Sélectionnez...</option>
+          <option value="Conférence">Grandes Conférences & Keynotes</option>
+          <option value="Atelier Pratique">Ateliers Pratiques (Hands-on)</option>
+          <option value="Table Ronde">Tables Rondes et Débats</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>14. Votre niveau d'expérience sur les thèmes abordés :</label>
+        <select class="in mt-s" [(ngModel)]="answers.expLevel">
+          <option value="">Sélectionnez...</option>
+          <option value="Débutant">Débutant / Curieux</option>
+          <option value="Intermédiaire">Intermédiaire / Praticien</option>
+          <option value="Expert">Expert / Senior</option>
+        </select>
+      </div>
+
+      <div class="slider-row mt">
+        <label>15. Intérêt pour la Technologie & l'Innovation ({{answers.actTech}}/10)</label>
+        <input type="range" min="0" max="10" [(ngModel)]="answers.actTech" class="slider">
+      </div>
+      
+      <div class="slider-row mt">
+        <label>16. Intérêt pour les activités physiques/sportives ({{answers.actSport}}/10)</label>
+        <input type="range" min="0" max="10" [(ngModel)]="answers.actSport" class="slider">
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sm" (click)="prevStep()">Retour</button>
+        <button class="btn btn-ai" [disabled]="!answers.goal || !answers.format || !answers.expLevel" (click)="nextStep()">Suivant</button>
+      </div>
+    </div>
+
+    <!-- Step 5: Ambiance & Social -->
+    <div *ngIf="step === 5" class="step-view">
+      <h1>Ambiance & Social 🎉</h1>
+      
+      <div class="mt">
+        <label>17. L'ambiance idéale pour vous :</label>
+        <select class="in mt-s" [(ngModel)]="answers.vibe">
+          <option value="">Sélectionnez...</option>
+          <option value="Calme et Studieux">Calme et très pro 👔</option>
+          <option value="Détendu et Informel">Détendu et informel (Startup vibe) ☕</option>
+          <option value="Festif">Festif et très dynamique 🥳</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>18. Avez-vous besoin d'un espace de travail "Coworking" pendant l'event ?</label>
+        <select class="in mt-s" [(ngModel)]="answers.workspace">
+          <option value="">Sélectionnez...</option>
+          <option value="Oui">Oui, je dois bosser un peu (Wifi + Calme)</option>
+          <option value="Non">Non, je me déconnecte totalement</option>
+        </select>
+      </div>
+
+      <div class="mt">
+        <label>19. Serez-vous présent aux soirées Afterworks ?</label>
+        <select class="in mt-s" [(ngModel)]="answers.afterwork">
+          <option value="">Sélectionnez...</option>
+          <option value="Oui">Absolument ! 🍻</option>
+          <option value="Non">Non, je préfère me reposer 😴</option>
+        </select>
+      </div>
+
+      <div class="slider-row mt">
+        <label>20. Votre envie de rencontres / socialisation ({{answers.actSocial}}/10)</label>
+        <input type="range" min="0" max="10" [(ngModel)]="answers.actSocial" class="slider">
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn btn-sm" (click)="prevStep()">Retour</button>
+        <button class="btn btn-ai" [disabled]="!answers.vibe || !answers.workspace || !answers.afterwork" (click)="nextStep()">Calculer mon Profil</button>
+      </div>
+    </div>
+
+    <!-- Step 6: Score & Profil Généré -->
+    <div *ngIf="step === 6" class="step-view text-center">
+      <div class="score-circle">
+        <span>{{score}}</span>
+        <small>pts</small>
+      </div>
+      <h2 style="font-size:24px; margin-top:20px; margin-bottom: 10px;">Votre Profil : <span style="color:var(--violet)">{{profileType}}</span></h2>
+      <p style="color:var(--tx-2); line-height: 1.6;">Bravo ! Vos 20 réponses ont bien été enregistrées dans vos préférences et contraintes. Les organisateurs pourront vous préparer un accueil parfait.</p>
+      
+      <button class="btn btn-lg btn-ai mt-l" (click)="goToDashboard()">Accéder à mon Profil</button>
+    </div>
+
+  </div>
+</div>

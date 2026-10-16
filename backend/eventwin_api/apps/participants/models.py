@@ -3,19 +3,30 @@ from django.db import models
 from apps.base_models import UUIDTimestampedModel
 
 
+from django.contrib.auth.models import User
+
 class Participant(UUIDTimestampedModel):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile', null=True)
     organization = models.ForeignKey(
         'organizations.Organization',
         on_delete=models.CASCADE,
         related_name='participants',
+        null=True, blank=True
     )
-    full_name = models.CharField(max_length=255)
-    email = models.EmailField(blank=True, null=True)
     role = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=50, default='active')
 
     def __str__(self):
-        return self.full_name
+        return self.user.username if self.user else str(self.id)
+        
+    def delete(self, *args, **kwargs):
+        # Sauvegarder la référence à l'utilisateur avant la suppression
+        user_to_delete = self.user
+        # Supprimer d'abord le Participant
+        super().delete(*args, **kwargs)
+        # Supprimer ensuite l'utilisateur lié
+        if user_to_delete:
+            user_to_delete.delete()
 
 
 class EventParticipant(UUIDTimestampedModel):
@@ -37,3 +48,9 @@ class ParticipantConstraint(UUIDTimestampedModel):
     constraint_type = models.CharField(max_length=100)
     value = models.CharField(max_length=255)
     is_hard_constraint = models.BooleanField(default=False)
+
+class Organizer(Participant):
+    class Meta:
+        proxy = True
+        verbose_name = 'Organisateur'
+        verbose_name_plural = 'Organisateurs'

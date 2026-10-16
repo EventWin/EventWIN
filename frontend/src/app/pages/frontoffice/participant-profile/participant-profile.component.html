@@ -1,0 +1,107 @@
+<div *ngIf="participant" style="position:relative;">
+  
+  <!-- INTERFACE PRINCIPALE (Masquée si on est dans le Quiz) -->
+  <div class="view">
+    <div class="card">
+      <div class="pro-head">
+        <div class="big-av">{{ getInitials(participant.full_name) }}</div>
+        <div style="flex:1;min-width:210px">
+          <h1 style="font-size:22px;font-weight:600">{{ participant.full_name }}</h1>
+          <p class="muted tiny">{{ participant.email }}</p>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <span class="chip ai">{{ participant.role === 'admin' ? 'Organisateur' : 'Participant' }}</span>
+            <span class="chip gain">Statut: {{ participant.status }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs mt-l" role="tablist">
+      <button role="tab" [attr.aria-selected]="activeTab === 't-id'" (click)="activeTab = 't-id'" [class.active]="activeTab === 't-id'">Identité</button>
+      <button role="tab" [attr.aria-selected]="activeTab === 't-pref'" (click)="activeTab = 't-pref'" [class.active]="activeTab === 't-pref'">Mes Préférences</button>
+      <button role="tab" [attr.aria-selected]="activeTab === 't-const'" (click)="activeTab = 't-const'" [class.active]="activeTab === 't-const'">Mes Contraintes</button>
+      <button role="tab" [attr.aria-selected]="activeTab === 't-sec'" (click)="activeTab = 't-sec'" [class.active]="activeTab === 't-sec'">Sécurité</button>
+    </div>
+
+    <!-- ONGLET IDENTITÉ -->
+    <div class="card tabpane" *ngIf="activeTab === 't-id'">
+      <div class="grid g2">
+        <div class="field"><label>Nom complet</label><input class="in" [value]="participant.full_name" readonly></div>
+        <div class="field"><label>E-mail</label><input class="in" [value]="participant.email" readonly></div>
+        <div class="field"><label>Téléphone</label><input class="in" placeholder="Non renseigné"></div>
+        <div class="field"><label>Organisation</label><input class="in" [value]="participant.organization?.name || 'Aucune'" readonly></div>
+      </div>
+    </div>
+
+    <!-- ONGLET PRÉFÉRENCES -->
+    <div class="card tabpane" *ngIf="activeTab === 't-pref'">
+      <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3>Vos Préférences</h3>
+          <p>Ce que vous attendez de l'événement.</p>
+        </div>
+        <a class="btn btn-sm btn-ai" href="/participant-onboarding">Modifier mon Quiz</a>
+      </div>
+
+      <!-- CARTE TYPE DE PROFIL (Non modifiable) -->
+      <div *ngIf="getProfileType() as profileType" class="mt-l" style="background: var(--ai-soft); border: 2px solid var(--violet); border-radius: 12px; padding: 25px; display: flex; gap: 20px; align-items: center;">
+        <div style="background: var(--violet); color: #fff; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; flex-shrink: 0;">
+          {{ profileType.score }}
+        </div>
+        <div>
+          <h2 style="font-size: 20px; font-weight: 700; color: var(--violet); margin-bottom: 5px;">{{ profileType.name }}</h2>
+          <p style="color: var(--tx-2); font-size: 15px; line-height: 1.5; margin: 0;">{{ profileType.desc }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="getEditablePreferences().length === 0" class="muted tiny mt">Aucune préférence renseignée. Passez le quiz !</div>
+      <div class="mt-l grid g1" style="gap:15px;">
+        <div class="card" *ngFor="let p of getEditablePreferences()" style="padding: 15px; border: 1px solid var(--line); box-shadow:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b style="color:var(--violet);">{{ p.type }}</b>
+            <button class="btn btn-sm" *ngIf="!p.isEditing" (click)="p.isEditing = true">Modifier</button>
+            <button class="btn btn-sm btn-ai" *ngIf="p.isEditing" (click)="updatePreference(p)">Enregistrer</button>
+          </div>
+          <div class="mt-s">
+            <span *ngIf="!p.isEditing" style="font-size: 15px;">{{ p.value }}</span>
+            <input *ngIf="p.isEditing" type="text" class="in" [(ngModel)]="p.value" style="width:100%">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONGLET CONTRAINTES -->
+    <div class="card tabpane" *ngIf="activeTab === 't-const'">
+      <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3>Vos Contraintes</h3>
+          <p>Alimentation, mobilité, budget, etc.</p>
+        </div>
+        <a class="btn btn-sm btn-ai" href="/participant-onboarding">Repasser tout le Quiz</a>
+      </div>
+      <div *ngIf="savedConstraints.length === 0" class="muted tiny mt">Aucune contrainte stricte. Passez le quiz !</div>
+      <div class="mt-l grid g1" style="gap:15px;">
+        <div class="card" *ngFor="let c of savedConstraints" style="padding: 15px; border: 1px solid var(--line); box-shadow:none; border-left: 4px solid var(--danger);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b style="color:var(--danger);">{{ c.type }} <span *ngIf="c.isHard">🚨</span></b>
+            <button class="btn btn-sm" *ngIf="!c.isEditing" (click)="c.isEditing = true">Modifier</button>
+            <button class="btn btn-sm btn-ai" *ngIf="c.isEditing" (click)="updateConstraint(c)">Enregistrer</button>
+          </div>
+          <div class="mt-s">
+            <span *ngIf="!c.isEditing" style="font-size: 15px;">{{ c.value }}</span>
+            <input *ngIf="c.isEditing" type="text" class="in" [(ngModel)]="c.value" style="width:100%">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONGLET SÉCURITÉ -->
+    <div class="card tabpane" *ngIf="activeTab === 't-sec'">
+      <div class="setting">
+        <div>
+          <b>Supprimer le compte</b>
+          <small>Vos données seront effacées définitivement de l'événement.</small>
+        </div>
+        <button class="btn btn-sm btn-danger" (click)="deleteAccount()">Supprimer</button>
+      </div>
+</div>

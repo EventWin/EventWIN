@@ -1,0 +1,52 @@
+.admin-auth {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #111424; /* Très sombre pour l'admin */
+  color: white;
+}
+
+.admin-panel {
+  background-color: #161A2E;
+  padding: 50px;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.logo em {
+  color: #7C5CFF;
+  font-style: normal;
+}
+
+h2 {
+  font-size: 22px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+p {
+  color: #9CA3C0;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.mt { margin-top: 20px; }
+
+.error {
+  color: #E8455F;
+  margin-top: 15px;
+  text-align: center;
+  font-weight: 600;
+}

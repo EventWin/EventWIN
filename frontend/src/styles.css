@@ -400,6 +400,8 @@ td b{color:var(--tx);font-weight:500}
 
 /* Rôles */
 body[data-role="client"] .only-admin{display:none!important}
+body[data-role="participant"] .only-admin{display:none!important}
+body[data-role="organizer"] .only-admin{display:none!important}
 body[data-role="admin"] .only-client{display:none!important}
 
 .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,180%);z-index:90;padding:14px 22px;
