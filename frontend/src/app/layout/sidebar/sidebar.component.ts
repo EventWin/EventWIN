@@ -13,8 +13,12 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
     </div>
 
     <a class="nav" routerLink="/app/home" routerLinkActive="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.2"/></svg>
+      Jumeau numérique
+    </a>
+    <a class="nav" routerLink="/app/supervision" routerLinkActive="active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
-      <span class="only-client">Mon tableau de bord</span><span class="only-admin">Supervision</span>
+      Supervision
     </a>
 
     <div class="nav-group">Modules</div>

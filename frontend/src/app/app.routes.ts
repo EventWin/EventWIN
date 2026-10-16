@@ -14,7 +14,8 @@ export const routes: Routes = [
     loadComponent: () => import('./layout/main-layout/main-layout.component').then(m => m.MainLayoutComponent),
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
-      { path: 'home', loadComponent: () => import('./pages/backoffice/home/home.component').then(m => m.HomeComponent) },
+      { path: 'home', loadComponent: () => import('./pages/backoffice/twin-home/twin-home.component').then(m => m.TwinHomeComponent) },
+      { path: 'supervision', loadComponent: () => import('./pages/backoffice/home/home.component').then(m => m.HomeComponent) },
       { path: 'optim', loadComponent: () => import('./pages/backoffice/optim/optim.component').then(m => m.OptimComponent) },
       { path: 'events', loadComponent: () => import('./pages/backoffice/events/events.component').then(m => m.EventsComponent) },
       { path: 'participants', loadComponent: () => import('./pages/backoffice/participants/participants.component').then(m => m.ParticipantsComponent) },

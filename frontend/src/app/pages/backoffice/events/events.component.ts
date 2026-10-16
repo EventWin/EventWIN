@@ -2,7 +2,9 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { EventContextService } from '../../../twin/event-context.service';
 
 type EventItem = {
   id: string;
@@ -210,6 +212,7 @@ const ACCESSIBILITY_LEVELS = [
               <td><span class="chip" [class.gain]="event.status === 'confirmed'" [class.warn]="event.status === 'draft'" [class.risk]="event.status === 'archived'">{{ event.status }}</span></td>
               <td>
                 <div class="row-actions">
+                  <button class="btn btn-sm btn-ai" type="button" (click)="openTwin(event)">Jumeau</button>
                   <button class="btn btn-sm" type="button" (click)="startEdit(event)">Modifier</button>
                   <button class="btn btn-sm btn-danger" type="button" (click)="remove(event)">Supprimer</button>
                 </div>
@@ -493,11 +496,34 @@ export class EventsComponent implements OnInit {
   editingEvent: EventItem | null = null;
   form: EventForm = this.emptyForm();
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+    private readonly context: EventContextService
+  ) {}
 
   ngOnInit(): void {
     this.loadOrganizations();
-    this.refresh();
+    this.refresh(true);
+  }
+
+  openTwin(event: EventItem): void {
+    this.context.select(event.id, event.name);
+    this.router.navigate(['/app/home'], { queryParams: { event: event.id } });
+  }
+
+  /** Deep links from the twin home: ?edit=<id> opens the editor, ?create=1 the creation form. */
+  private applyDeepLink(): void {
+    const q = this.route.snapshot.queryParamMap;
+    const edit = q.get('edit');
+    const target = edit ? this.events.find((e) => e.id === edit) : undefined;
+    if (target) {
+      this.startEdit(target);
+      setTimeout(() => this.eventFormAnchor?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+    } else if (q.get('create') === '1') {
+      this.startCreate();
+    }
   }
 
   get filteredEvents(): EventItem[] {
@@ -575,12 +601,13 @@ export class EventsComponent implements OnInit {
       : 'Non';
   }
 
-  refresh(): void {
+  refresh(applyDeepLink = false): void {
     this.loading = true;
     this.http.get<EventItem[]>('/api/events/').subscribe({
       next: (events) => {
         this.events = events;
         this.loading = false;
+        if (applyDeepLink) this.applyDeepLink();
       },
       error: () => {
         this.events = [];
@@ -688,9 +715,9 @@ export class EventsComponent implements OnInit {
     }
 
     this.http.post<EventItem>('/api/events/', payload).subscribe({
-      next: () => {
+      next: (created) => {
         this.closeForm();
-        this.refresh();
+        this.openTwin(created);
       }
     });
   }

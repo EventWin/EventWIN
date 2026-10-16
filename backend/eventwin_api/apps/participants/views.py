@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.event_filter import EventFilterMixin
 from apps.organizations.models import Organization
 from .models import EventParticipant, Participant, ParticipantConstraint, ParticipantPreference
 from .serializers import (
@@ -13,7 +14,12 @@ from .serializers import (
 
 
 class ParticipantViewSet(viewsets.ModelViewSet):
-    queryset = Participant.objects.select_related('organization', 'user').all().order_by('user__username')
+    queryset = (
+        Participant.objects.select_related('organization', 'user')
+        .prefetch_related('preferences', 'constraints')
+        .all()
+        .order_by('user__username')
+    )
     serializer_class = ParticipantSerializer
 
     @action(detail=False, methods=['post'])
@@ -30,11 +36,13 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             user = User.objects.filter(username=email).first()
             
         if user and user.check_password(password):
-            role = 'admin' if user.is_superuser else getattr(getattr(user, 'profile', None), 'role', 'participant')
+            profile = Participant.objects.filter(user=user).first()
+            role = 'admin' if user.is_superuser else getattr(profile, 'role', 'participant')
             return Response({
                 'message': 'Login successful',
                 'participant': {
-                    'id': user.id,
+                    # Participant UUID when a profile exists, so preferences/constraints/profile calls resolve
+                    'id': str(profile.id) if profile else user.id,
                     'email': user.email,
                     'full_name': user.username,
                     'role': role
@@ -192,7 +200,7 @@ class ParticipantViewSet(viewsets.ModelViewSet):
         return Response(ParticipantSerializer(organizers, many=True).data)
 
 
-class EventParticipantViewSet(viewsets.ModelViewSet):
+class EventParticipantViewSet(EventFilterMixin, viewsets.ModelViewSet):
     queryset = EventParticipant.objects.select_related('event', 'participant').all().order_by('-created_at')
     serializer_class = EventParticipantSerializer
 

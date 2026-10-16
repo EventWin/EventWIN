@@ -1,5 +1,7 @@
 from rest_framework import viewsets
 
+from apps.event_filter import EventFilterMixin
+
 from .models import Event, EventScheduleItem, Resource
 from .serializers import EventSerializer, EventScheduleItemSerializer, ResourceSerializer
 
@@ -9,11 +11,11 @@ class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
 
 
-class EventScheduleItemViewSet(viewsets.ModelViewSet):
+class EventScheduleItemViewSet(EventFilterMixin, viewsets.ModelViewSet):
     queryset = EventScheduleItem.objects.select_related('event').all().order_by('starts_at')
     serializer_class = EventScheduleItemSerializer
 
 
-class ResourceViewSet(viewsets.ModelViewSet):
+class ResourceViewSet(EventFilterMixin, viewsets.ModelViewSet):
     queryset = Resource.objects.select_related('event').all().order_by('name')
     serializer_class = ResourceSerializer

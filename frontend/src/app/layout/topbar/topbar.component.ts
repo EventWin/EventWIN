@@ -2,6 +2,7 @@ import { Component, HostListener, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ParticipantService } from '../../services/participant.service';
+import { EventContextService } from '../../twin/event-context.service';
 
 @Component({
   selector: 'app-topbar',
@@ -13,6 +14,9 @@ import { ParticipantService } from '../../services/participant.service';
         <svg viewBox="0 0 24 24" width="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
       <div class="crumb">EventTwin / <b id="crumb">Accueil</b></div>
+      <a class="ev-chip" *ngIf="context.selected$ | async as ev" routerLink="/app/home" [queryParams]="{ event: ev.id }" title="Événement sélectionné — ouvrir son jumeau">
+        <i></i><span>{{ ev.name }}</span>
+      </a>
       <label class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>
         <input placeholder="Chercher un événement…" aria-label="Recherche">
@@ -41,7 +45,8 @@ export class TopbarComponent implements OnInit {
 
   constructor(
     private participantService: ParticipantService,
-    private router: Router
+    private router: Router,
+    readonly context: EventContextService
   ) {}
 
   ngOnInit() {
