@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 400 400" role="img" aria-label="Twin, la mascotte EventTwin, animée">
+  <style>
+    svg { display: block; overflow: visible; }
+    .tw-shadow, .tw-aura, .tw-head { transform-box: fill-box; transform-origin: center; }
+    .tw-eye, .tw-spark-mark { transform-box: fill-box; transform-origin: center; }
+
+    @keyframes twBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    @keyframes twShadow { 0%, 100% { transform: scaleX(1); opacity: .3; } 50% { transform: scaleX(.85); opacity: .22; } }
+    @keyframes twAura { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: .85; transform: scale(1.06); } }
+    @keyframes twEcho { 0%, 100% { opacity: .25; } 50% { opacity: .55; } }
+    @keyframes twBlink { 0%, 90%, 100% { transform: scaleY(1); } 93%, 97% { transform: scaleY(.1); } }
+    @keyframes twSparkFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-4px) rotate(8deg); } }
+    @keyframes twTwinkle { 0%, 100% { opacity: .9; } 50% { opacity: .25; } }
+
+    .tw-head { animation: twBob 3.2s ease-in-out infinite; }
+    .tw-shadow { animation: twShadow 3.2s ease-in-out infinite; }
+    .tw-aura { animation: twAura 4s ease-in-out infinite; }
+    .tw-echo { animation: twEcho 4s ease-in-out infinite reverse; }
+    .tw-eye-left { animation: twBlink 5s linear infinite; }
+    .tw-eye-right { animation: twBlink 5s linear infinite; animation-delay: .15s; }
+    .tw-spark-mark { animation: twSparkFloat 2.6s ease-in-out infinite; }
+    .tw-spark-dot-1 { animation: twTwinkle 1.8s ease-in-out infinite; }
+    .tw-spark-dot-2 { animation: twTwinkle 1.8s ease-in-out infinite; animation-delay: .6s; }
+
+    @media(prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+
+  <defs>
+    <linearGradient id="bodyGrad" x1="0" y1="0" x2="1" y2="0.7">
+      <stop offset="0%" stop-color="#7C5CFF"/><stop offset="55%" stop-color="#3B82F6"/><stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+    <radialGradient id="auraGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7C5CFF" stop-opacity="0.45"/><stop offset="60%" stop-color="#3B82F6" stop-opacity="0.15"/><stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glossGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.65"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shadowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#161A2E" stop-opacity="0.3"/><stop offset="100%" stop-color="#161A2E" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <ellipse class="tw-shadow" cx="200" cy="336" rx="72" ry="14" fill="url(#shadowGrad)"/>
+  <circle class="tw-aura" cx="222" cy="184" r="100" fill="url(#auraGrad)"/>
+  <circle class="tw-echo" cx="214" cy="196" r="86" fill="none" stroke="url(#bodyGrad)" stroke-width="4" opacity="0.4"/>
+
+  <g class="tw-head">
+    <circle class="tw-body" cx="200" cy="210" r="86" fill="url(#bodyGrad)"/>
+    <ellipse class="tw-gloss" cx="168" cy="172" rx="44" ry="32" fill="url(#glossGrad)" transform="rotate(-18 168 172)"/>
+
+    <g class="tw-eye tw-eye-left">
+      <circle cx="172" cy="205" r="18" fill="#FFFFFF"/>
+      <circle cx="176" cy="209" r="8.5" fill="#1B2033"/>
+      <circle cx="179" cy="205" r="2.6" fill="#FFFFFF"/>
+    </g>
+    <g class="tw-eye tw-eye-right">
+      <circle cx="228" cy="205" r="18" fill="#FFFFFF"/>
+      <circle cx="232" cy="209" r="8.5" fill="#1B2033"/>
+      <circle cx="235" cy="205" r="2.6" fill="#FFFFFF"/>
+    </g>
+
+    <path class="tw-mouth" d="M178 236 Q200 252 222 236" stroke="#1B2033" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+    <g class="tw-spark">
+      <rect class="tw-spark-mark" x="258" y="118" width="20" height="20" rx="4" fill="none" stroke="url(#bodyGrad)" stroke-width="3" transform="rotate(45 268 128)"/>
+      <circle class="tw-spark-dot tw-spark-dot-1" cx="262.9" cy="134.2" r="2.2" fill="url(#bodyGrad)" opacity="0.6"/>
+      <circle class="tw-spark-dot tw-spark-dot-2" cx="255.2" cy="143.4" r="3.2" fill="url(#bodyGrad)" opacity="0.8"/>
+    </g>
+  </g>
+</svg>

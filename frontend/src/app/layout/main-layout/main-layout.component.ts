@@ -22,6 +22,11 @@ import { TopbarComponent } from '../topbar/topbar.component';
   `
 })
 export class MainLayoutComponent {
+  ngOnInit() {
+    const role = localStorage.getItem('participant_role') || 'client';
+    document.body.setAttribute('data-role', role);
+  }
+
   @HostListener('document:keydown.escape')
   onEscape() {
     document.body.classList.remove('nav-open');
