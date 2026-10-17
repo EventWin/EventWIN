@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { organizerGuard } from './sponsors/organizer.guard';
 
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./pages/frontoffice/landing/landing.component').then(m => m.LandingComponent), pathMatch: 'full' },
@@ -8,6 +9,7 @@ export const routes: Routes = [
   { path: 'organizer-login', loadComponent: () => import('./pages/backoffice/auth/organizer-login/organizer-login.component').then(m => m.OrganizerLoginComponent) },
   { path: 'participant-register', loadComponent: () => import('./pages/frontoffice/auth/participant-register/participant-register.component').then(m => m.ParticipantRegisterComponent) },
   { path: 'forgot', loadComponent: () => import('./pages/frontoffice/auth/forgot/forgot.component').then(m => m.ForgotComponent) },
+  { path: 'sponsor/:token', loadComponent: () => import('./pages/frontoffice/sponsor-portal/sponsor-portal.component').then(m => m.SponsorPortalComponent) },
   { path: 'logout', loadComponent: () => import('./pages/frontoffice/auth/logout/logout.component').then(m => m.LogoutComponent) },
   {
     path: 'app',
@@ -20,6 +22,7 @@ export const routes: Routes = [
       { path: 'events', loadComponent: () => import('./pages/backoffice/events/events.component').then(m => m.EventsComponent) },
       { path: 'participants', loadComponent: () => import('./pages/backoffice/participants/participants.component').then(m => m.ParticipantsComponent) },
       { path: 'budgets', loadComponent: () => import('./pages/backoffice/budgets/budgets.component').then(m => m.BudgetsComponent) },
+      { path: 'sponsors', canActivate: [organizerGuard], loadChildren: () => import('./pages/backoffice/sponsors/sponsors.routes').then(m => m.SPONSORS_ROUTES) },
       { path: 'teams', loadComponent: () => import('./pages/backoffice/teams/teams.component').then(m => m.TeamsComponent) },
       { path: 'profile', loadComponent: () => import('./pages/frontoffice/participant-profile/participant-profile.component').then(m => m.ParticipantProfileComponent) }
     ]

@@ -34,6 +34,10 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="6" width="19" height="13" rx="3"/><path d="M2.5 11h19M6.5 15.5h4"/></svg>
       Budgets &amp; ressources
     </a>
+    <a class="nav" routerLink="/app/sponsors" routerLinkActive="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-7-4.4-9.3-9A5.3 5.3 0 0 1 12 6.2 5.3 5.3 0 0 1 21.3 12C19 16.6 12 21 12 21z"/></svg>
+      Sponsors
+    </a>
     <a class="nav" routerLink="/app/optim" routerLinkActive="active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7z"/><path d="M18 17l.9 2.4L21 20l-2.1.7L18 23l-.9-2.3L15 20l2.1-.6z"/></svg>
       Optimiser <span class="tag">IA</span>

@@ -90,6 +90,12 @@ class SponsorshipPackageSerializer(serializers.ModelSerializer):
 
 
 class SponsorshipDealSerializer(serializers.ModelSerializer):
+    sponsor_name = serializers.CharField(source='sponsor.name', read_only=True)
+    sponsor_industry = serializers.CharField(source='sponsor.industry', read_only=True)
+    sponsor_logo_url = serializers.CharField(source='sponsor.logo_url', read_only=True)
+    sponsor_organization = serializers.UUIDField(source='sponsor.organization_id', read_only=True)
+    next_due_date = serializers.SerializerMethodField()
+    package_name = serializers.SerializerMethodField()
     owner_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
     deliverables_done = serializers.SerializerMethodField()
@@ -102,10 +108,16 @@ class SponsorshipDealSerializer(serializers.ModelSerializer):
             'id',
             'event',
             'sponsor',
+            'sponsor_name',
+            'sponsor_industry',
+            'sponsor_logo_url',
+            'sponsor_organization',
+            'next_due_date',
             'owner',
             'owner_name',
             'created_by_name',
             'package',
+            'package_name',
             'status',
             'cash_amount',
             'in_kind_value',
@@ -121,6 +133,15 @@ class SponsorshipDealSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+
+    def get_next_due_date(self, obj):
+        """Prochaine échéance ouverte : paiement non réglé ou contrepartie non livrée."""
+        dates = [p.due_date for p in obj.payments.all() if p.due_date and p.status != 'paid']
+        dates += [d.due_date for d in obj.deliverables.all() if d.due_date and d.status != 'delivered']
+        return min(dates) if dates else None
+
+    def get_package_name(self, obj):
+        return obj.package.name if obj.package_id else ''
 
     def get_owner_name(self, obj):
         if obj.owner and obj.owner.user:
@@ -183,12 +204,15 @@ class SponsorshipDealSerializer(serializers.ModelSerializer):
 
 
 class SponsorshipActivitySerializer(serializers.ModelSerializer):
+    actor_name = serializers.SerializerMethodField()
+
     class Meta:
         model = SponsorshipActivity
         fields = [
             'id',
             'deal',
             'actor',
+            'actor_name',
             'action',
             'from_status',
             'to_status',
@@ -197,8 +221,14 @@ class SponsorshipActivitySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
 
+    def get_actor_name(self, obj):
+        if obj.actor_id is None:
+            return 'Sponsor (portail)' if obj.action == 'asset_submitted' else 'Système'
+        return obj.actor.user.username if obj.actor.user else 'Organisateur'
+
 
 class SponsorDeliverableSerializer(serializers.ModelSerializer):
+    sponsor_name = serializers.CharField(source='deal.sponsor.name', read_only=True)
     warnings = serializers.SerializerMethodField()
 
     class Meta:
@@ -206,6 +236,7 @@ class SponsorDeliverableSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'deal',
+            'sponsor_name',
             'title',
             'deliverable_type',
             'due_date',
@@ -251,11 +282,16 @@ class SponsorDeliverableSerializer(serializers.ModelSerializer):
 
 
 class SponsorPaymentSerializer(serializers.ModelSerializer):
+    sponsor_name = serializers.CharField(source='deal.sponsor.name', read_only=True)
+    currency = serializers.CharField(source='deal.currency', read_only=True)
+
     class Meta:
         model = SponsorPayment
         fields = [
             'id',
             'deal',
+            'sponsor_name',
+            'currency',
             'label',
             'amount',
             'due_date',
@@ -284,6 +320,7 @@ class SponsorFitEvaluationSerializer(serializers.ModelSerializer):
             'budget_fit',
             'estimated_roi',
             'hard_constraint_failures',
+            'breakdown',
             'explanation',
             'evaluated_at',
             'created_at',

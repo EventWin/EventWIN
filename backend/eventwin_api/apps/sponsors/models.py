@@ -309,6 +309,7 @@ class SponsorFitEvaluation(UUIDTimestampedModel):
         blank=True,
     )
     hard_constraint_failures = models.JSONField(default=list, blank=True)
+    breakdown = models.JSONField(default=list, blank=True)
     explanation = models.TextField(blank=True)
     evaluated_at = models.DateTimeField(auto_now_add=True)
 

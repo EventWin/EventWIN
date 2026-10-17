@@ -44,6 +44,17 @@ erDiagram
   BUDGET ||--o{ BUDGET_CATEGORY : contains
   BUDGET_CATEGORY ||--o{ COST_ITEM : tracks
   SCENARIO ||--o{ SCENARIO_RESULT : produces
+  EVENT ||--o{ TRANSPORT_AVAILABILITY_SNAPSHOT : checks
+  EVENT ||--o{ TRANSPORT_EVALUATION : scores
+  ORGANIZATION ||--o{ SPONSOR : manages
+  EVENT ||--o{ SPONSORSHIP_PACKAGE : offers
+  EVENT ||--o{ SPONSORSHIP_DEAL : funded_by
+  SPONSOR ||--o{ SPONSORSHIP_DEAL : signs
+  SPONSORSHIP_PACKAGE ||--o{ SPONSORSHIP_DEAL : sold_as
+  SPONSORSHIP_DEAL ||--o{ SPONSOR_DELIVERABLE : owes
+  SPONSORSHIP_DEAL ||--o{ SPONSOR_PAYMENT : pays
+  SPONSORSHIP_DEAL ||--o{ SPONSORSHIP_ACTIVITY : logs
+  EVENT ||--o{ SPONSOR_FIT_EVALUATION : scores
 ```
 
 ## Repository structure
@@ -65,6 +76,7 @@ frontend/
 
 docs/
   architecture.md
+  sponsors.md
   next-steps.md
 database/
   schema/

@@ -40,3 +40,11 @@ def test_organizer_cannot_read_foreign_deal(organizer_a, organizer_b, event_b, o
     deal = SponsorshipDeal.objects.create(event=event_b, sponsor=sponsor, owner=organizer_b)
     response = api_client(organizer_a).get(f'/api/sponsorship-deals/{deal.id}/')
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_malformed_participant_header_is_forbidden_not_500():
+    from rest_framework.test import APIClient
+    for bad in ('1', 'abc', 'not-a-uuid'):
+        response = APIClient().get('/api/sponsors/', HTTP_X_PARTICIPANT_ID=bad)
+        assert response.status_code == 403
