@@ -15,6 +15,7 @@ export class AdminLoginComponent {
   email: string = '';
   password: string = '';
   errorMessage: string = '';
+  passwordVisible: boolean = false;
 
   constructor(
     private participantService: ParticipantService,

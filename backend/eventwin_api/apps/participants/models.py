@@ -15,6 +15,8 @@ class Participant(UUIDTimestampedModel):
     )
     role = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=50, default='active')
+    phone = models.CharField(max_length=50, blank=True, default='')
+    photo = models.TextField(blank=True, default='')
 
     def __str__(self):
         return self.user.username if self.user else str(self.id)
@@ -54,3 +56,26 @@ class Organizer(Participant):
         proxy = True
         verbose_name = 'Organisateur'
         verbose_name_plural = 'Organisateurs'
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=User)
+def sync_user_participant_profile(sender, instance, created, **kwargs):
+    role = 'participant'
+    if instance.is_superuser:
+        role = 'admin'
+    elif instance.is_staff:
+        role = 'organizer'
+        
+    try:
+        from apps.organizations.models import Organization
+        org = Organization.objects.first()
+    except Exception:
+        org = None
+
+    p, _ = Participant.objects.get_or_create(user=instance, defaults={'role': role, 'status': 'active', 'organization': org})
+    if p.role != role and (instance.is_superuser or instance.is_staff):
+        p.role = role
+        p.save()

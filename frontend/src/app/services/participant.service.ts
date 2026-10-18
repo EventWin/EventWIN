@@ -14,8 +14,16 @@ export class ParticipantService {
     return this.http.post(`${this.apiUrl}login/`, { email, password });
   }
 
-  register(fullName: string, email: string, password?: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}register/`, { full_name: fullName, email, password });
+  register(fullName: string, email: string, password?: string, otp?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}register/`, { full_name: fullName, email, password, otp });
+  }
+
+  sendOtp(email: string, fullName: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}send_otp/`, { email, full_name: fullName });
+  }
+
+  verifyOtp(email: string, otp: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}verify_otp/`, { email, otp });
   }
 
   createOrganizer(fullName: string, email: string): Observable<any> {
@@ -62,5 +70,13 @@ export class ParticipantService {
     return this.http.patch(`http://localhost:8000/api/participant-constraints/${constId}/`, {
       value: value
     });
+  }
+
+  getOrganizations(): Observable<any> {
+    return this.http.get('http://localhost:8000/api/organizations/');
+  }
+
+  updateProfile(id: string, data: { first_name?: string; last_name?: string; full_name?: string; email?: string; phone?: string; organization?: string; photo?: string }): Observable<any> {
+    return this.http.patch(`${this.apiUrl}${id}/update_profile/`, data);
   }
 }

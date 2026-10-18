@@ -1,0 +1,23 @@
+<div style="font-family: Arial, sans-serif; text-align: center; background-color: #F6F7FC; padding: 40px; color: #161A2E;">
+    <div style="background-color: #FFFFFF; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 20px; box-shadow: 0 12px 32px -14px rgba(22,26,46,0.16);">
+
+        <h1 style="font-size: 24px; color: #161A2E;">Vérification de votre e-mail</h1>
+
+        <p style="color: #5A6183; font-size: 16px; line-height: 1.5;">
+            Bonjour {{ full_name }},<br><br>
+            Voici votre code de vérification pour créer votre compte participant EventTwin :
+        </p>
+
+        <div style="background-color: #F6F7FC; border-radius: 10px; padding: 20px; margin: 30px 0;">
+            <span style="background: linear-gradient(115deg, #7C5CFF, #3B82F6 55%, #22D3EE); color: #FFF; padding: 12px 24px; border-radius: 10px; font-size: 32px; font-weight: bold; letter-spacing: 8px; display: inline-block;">{{ code }}</span>
+        </div>
+
+        <p style="color: #5A6183; font-size: 14px;">
+            Ce code est valable {{ minutes }} minutes.
+        </p>
+    </div>
+
+    <p style="color: #9CA3C0; font-size: 12px; margin-top: 20px;">
+        Si vous n'êtes pas à l'origine de cette demande, veuillez ignorer cet e-mail.
+    </p>
+</div>

@@ -82,7 +82,7 @@ import { CommonModule } from '@angular/common';
     <div class="card tabpane" *ngIf="activeTab === 't-bill'">
       <div class="grid g3">
         <div class="stat"><div class="lab">Formule</div><div class="val" style="font-size:21px">Studio</div><div class="foot">299 € / mois</div></div>
-        <div class="stat"><div class="lab">Crédits restants</div><div class="val n">1 280</div><div class="foot">sur 2 000 · recharge le 1er oct.</div></div>
+        <div class="stat"><div class="lab">Points cumulés</div><div class="val n">1 280 pts</div><div class="foot">sur 2 000 · niveau Actif</div></div>
         <div class="stat"><div class="lab">Événements actifs</div><div class="val n">3<sup>/10</sup></div><div class="foot">inclus dans la formule</div></div>
       </div>
       <div class="tw mt"><table>

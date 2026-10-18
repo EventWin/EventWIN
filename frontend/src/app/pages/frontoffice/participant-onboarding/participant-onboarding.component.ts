@@ -79,7 +79,7 @@ export class ParticipantOnboardingComponent implements OnInit {
       { t: 'Budget (Max)', v: this.answers.budget }
     ];
     constraints.forEach(c => {
-      if (c.v && c.v !== 'Aucun' && c.v !== '') {
+      if (c.v && c.v !== '') {
         this.participantService.addConstraint(this.participantId, c.t, c.v, true).subscribe();
       }
     });

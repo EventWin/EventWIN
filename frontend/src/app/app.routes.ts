@@ -7,6 +7,7 @@ export const routes: Routes = [
   { path: 'organizer-login', loadComponent: () => import('./pages/backoffice/auth/organizer-login/organizer-login.component').then(m => m.OrganizerLoginComponent) },
   { path: 'participant-register', loadComponent: () => import('./pages/frontoffice/auth/participant-register/participant-register.component').then(m => m.ParticipantRegisterComponent) },
   { path: 'forgot', loadComponent: () => import('./pages/frontoffice/auth/forgot/forgot.component').then(m => m.ForgotComponent) },
+  { path: 'reset-password', loadComponent: () => import('./pages/frontoffice/auth/reset-password/reset-password.component').then(m => m.ResetPasswordComponent) },
   { path: 'logout', loadComponent: () => import('./pages/frontoffice/auth/logout/logout.component').then(m => m.LogoutComponent) },
   {
     path: 'app',
@@ -19,7 +20,8 @@ export const routes: Routes = [
       { path: 'participants', loadComponent: () => import('./pages/backoffice/participants/participants.component').then(m => m.ParticipantsComponent) },
       { path: 'budgets', loadComponent: () => import('./pages/backoffice/budgets/budgets.component').then(m => m.BudgetsComponent) },
       { path: 'teams', loadComponent: () => import('./pages/backoffice/teams/teams.component').then(m => m.TeamsComponent) },
-      { path: 'profile', loadComponent: () => import('./pages/frontoffice/participant-profile/participant-profile.component').then(m => m.ParticipantProfileComponent) }
+      { path: 'profile', loadComponent: () => import('./pages/frontoffice/participant-profile/participant-profile.component').then(m => m.ParticipantProfileComponent) },
+      { path: 'my-pass', loadComponent: () => import('./pages/frontoffice/my-pass/my-pass.component').then(m => m.MyPassComponent) }
     ]
   }
 ];

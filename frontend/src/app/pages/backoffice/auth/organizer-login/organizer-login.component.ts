@@ -15,6 +15,8 @@ export class OrganizerLoginComponent {
   email: string = '';
   password: string = '';
   errorMessage: string = '';
+  passwordVisible: boolean = false;
+  loading: boolean = false;
 
   constructor(
     private participantService: ParticipantService,
@@ -27,8 +29,12 @@ export class OrganizerLoginComponent {
       return;
     }
 
-    this.participantService.login(this.email, this.password).subscribe({
+    this.loading = true;
+    this.errorMessage = '';
+
+    this.participantService.login(this.email.trim(), this.password).subscribe({
       next: (response: any) => {
+        this.loading = false;
         if (response.participant.role !== 'organizer' && response.participant.role !== 'admin') {
            this.errorMessage = 'Accès refusé. Vous n\'êtes pas organisateur.';
            return;
@@ -41,7 +47,8 @@ export class OrganizerLoginComponent {
         this.router.navigate(['/app/home']);
       },
       error: (err: any) => {
-        this.errorMessage = 'Identifiants incorrects.';
+        this.loading = false;
+        this.errorMessage = err?.error?.error || 'Identifiants incorrects.';
       }
     });
   }
