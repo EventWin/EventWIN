@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../../../services/auth.service';
 import { ParticipantService } from '../../../../services/participant.service';
 
 @Component({
@@ -18,21 +19,20 @@ export class AdminLoginComponent {
 
   constructor(
     private participantService: ParticipantService,
+    private authService: AuthService,
     private router: Router
   ) {}
 
   onLogin() {
     this.participantService.login(this.email, this.password).subscribe({
       next: (response: any) => {
+        // Le contrôle réel est serveur ; on vérifie ici pour l'UI.
         if (response.participant.role !== 'admin') {
            this.errorMessage = 'Accès refusé. Droits administrateur requis.';
            return;
         }
-        
-        localStorage.setItem('participant_id', response.participant.id);
-        localStorage.setItem('participant_role', response.participant.role);
-        localStorage.setItem('participant_name', response.participant.full_name || 'Admin');
-        
+
+        this.authService.saveSession(response);
         this.router.navigate(['/app/home']);
       },
       error: (err: any) => {

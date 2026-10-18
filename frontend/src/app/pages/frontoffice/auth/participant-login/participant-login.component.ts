@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../../../services/auth.service';
 import { ParticipantService } from '../../../../services/participant.service';
 
 @Component({
@@ -18,6 +19,8 @@ export class ParticipantLoginComponent {
 
   constructor(
     private participantService: ParticipantService,
+    private authService: AuthService,
+    private route: ActivatedRoute,
     private router: Router
   ) {}
 
@@ -27,18 +30,20 @@ export class ParticipantLoginComponent {
       return;
     }
 
-    this.participantService.login(this.email, this.password).subscribe({
+    this.authService.login(this.email, this.password).subscribe({
       next: (response: any) => {
-        // Enregistrer l'ID du participant (très simple pour la phase 0)
-        localStorage.setItem('participant_id', response.participant.id);
-        localStorage.setItem('participant_role', response.participant.role);
-        localStorage.setItem('participant_name', response.participant.full_name || 'Participant');
-        
-        // Redirection logique :
-        if (response.participant.role === 'admin') {
-          this.router.navigate(['/app/participants']); // Dashboard admin
+        // Stocke le jeton + le rôle (le rôle sert à l'UI ; le contrôle réel
+        // reste serveur via RBAC + propriété).
+        this.authService.saveSession(response);
+
+        const redirect = this.route.snapshot.queryParamMap.get('redirect');
+        const role = response.participant.role;
+        if (redirect) {
+          this.router.navigateByUrl(redirect);
+        } else if (role === 'admin' || role === 'organizer') {
+          this.router.navigate(['/app/home']);
         } else {
-          this.router.navigate(['/app/profile']); // Mon profil
+          this.router.navigate(['/app/profile']);
         }
       },
       error: (err: any) => {

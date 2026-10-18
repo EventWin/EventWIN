@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard, authGuard, organizerGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./pages/frontoffice/landing/landing.component').then(m => m.LandingComponent), pathMatch: 'full' },
@@ -8,20 +9,25 @@ export const routes: Routes = [
   { path: 'organizer-login', loadComponent: () => import('./pages/backoffice/auth/organizer-login/organizer-login.component').then(m => m.OrganizerLoginComponent) },
   { path: 'participant-register', loadComponent: () => import('./pages/frontoffice/auth/participant-register/participant-register.component').then(m => m.ParticipantRegisterComponent) },
   { path: 'forgot', loadComponent: () => import('./pages/frontoffice/auth/forgot/forgot.component').then(m => m.ForgotComponent) },
+  // Activation d'un compte organisateur invité + réinitialisation de mot de passe :
+  // deux flux à jeton, lisus dans l'URL (?token=...).
+  { path: 'activate', loadComponent: () => import('./pages/frontoffice/auth/activate/activate.component').then(m => m.ActivateComponent) },
+  { path: 'reset', loadComponent: () => import('./pages/frontoffice/auth/reset/reset.component').then(m => m.ResetComponent) },
   { path: 'logout', loadComponent: () => import('./pages/frontoffice/auth/logout/logout.component').then(m => m.LogoutComponent) },
   {
     path: 'app',
     loadComponent: () => import('./layout/main-layout/main-layout.component').then(m => m.MainLayoutComponent),
+    canActivate: [authGuard],
     children: [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       { path: 'home', loadComponent: () => import('./pages/backoffice/twin-home/twin-home.component').then(m => m.TwinHomeComponent) },
-      { path: 'supervision', loadComponent: () => import('./pages/backoffice/home/home.component').then(m => m.HomeComponent) },
-      { path: 'optim', loadComponent: () => import('./pages/backoffice/optim/optim.component').then(m => m.OptimComponent) },
+      { path: 'supervision', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/home/home.component').then(m => m.HomeComponent) },
+      { path: 'optim', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/optim/optim.component').then(m => m.OptimComponent) },
       { path: 'events', loadComponent: () => import('./pages/backoffice/events/events.component').then(m => m.EventsComponent) },
-      { path: 'participants', loadComponent: () => import('./pages/backoffice/participants/participants.component').then(m => m.ParticipantsComponent) },
-      { path: 'budgets', loadComponent: () => import('./pages/backoffice/budgets/budgets.component').then(m => m.BudgetsComponent) },
-      { path: 'budgets/:eventId', loadComponent: () => import('./pages/backoffice/budgets/budget-detail.component').then(m => m.BudgetDetailComponent) },
-      { path: 'teams', loadComponent: () => import('./pages/backoffice/teams/teams.component').then(m => m.TeamsComponent) },
+      { path: 'participants', canActivate: [adminGuard], loadComponent: () => import('./pages/backoffice/participants/participants.component').then(m => m.ParticipantsComponent) },
+      { path: 'budgets', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/budgets/budgets.component').then(m => m.BudgetsComponent) },
+      { path: 'budgets/:eventId', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/budgets/budget-detail.component').then(m => m.BudgetDetailComponent) },
+      { path: 'teams', canActivate: [adminGuard], loadComponent: () => import('./pages/backoffice/teams/teams.component').then(m => m.TeamsComponent) },
       { path: 'profile', loadComponent: () => import('./pages/frontoffice/participant-profile/participant-profile.component').then(m => m.ParticipantProfileComponent) }
     ]
   }

@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../../../services/auth.service';
 import { ParticipantService } from '../../../../services/participant.service';
 
 @Component({
@@ -19,6 +20,7 @@ export class ParticipantRegisterComponent {
 
   constructor(
     private participantService: ParticipantService,
+    private authService: AuthService,
     private router: Router
   ) {}
 
@@ -30,10 +32,8 @@ export class ParticipantRegisterComponent {
 
     this.participantService.register(this.fullName, this.email, this.password).subscribe({
       next: (response: any) => {
-        // Enregistrer l'ID pour la session
-        localStorage.setItem('participant_id', response.participant.id);
-        localStorage.setItem('participant_role', response.participant.role);
-        
+        // Le rôle est forcé « participant » côté serveur (aucune élévation).
+        this.authService.saveSession(response);
         // Redirection vers l'onboarding puisqu'il vient de s'inscrire
         this.router.navigate(['/participant-onboarding']);
       },

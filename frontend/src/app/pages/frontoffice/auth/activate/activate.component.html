@@ -1,0 +1,41 @@
+<div class="auth">
+  <div class="auth-story">
+    <div class="logo" style="margin-bottom: 30px; text-align: left;">
+      <img src="/assets/images/logo-eventtwin.png" alt="EventTwin Logo" style="height: 100px;">
+    </div>
+    <div style="margin-top: 40px;">
+      <h1 class="auth-head">Activez votre compte <span>Organisateur</span>.</h1>
+      <p class="auth-sub">Choisissez votre propre mot de passe pour activer votre compte. Aucun mot de passe ne vous sera jamais transmis par e-mail.</p>
+    </div>
+    <div class="stage" style="margin-top: 40px; display: flex; justify-content: center;">
+      <img src="/assets/images/mascot.svg" alt="Twin Mascot" width="320" height="320">
+    </div>
+  </div>
+  <div class="auth-panel">
+    <div class="auth-card">
+      <h2>Activation du compte</h2>
+      <p>Définissez le mot de passe de votre espace organisateur.</p>
+
+      <div class="field">
+        <label for="ac-pass">Nouveau mot de passe</label>
+        <input class="in" id="ac-pass" type="password" [(ngModel)]="password" placeholder="Au moins 8 caractères" autocomplete="new-password">
+      </div>
+
+      <div class="field">
+        <label for="ac-confirm">Confirmer le mot de passe</label>
+        <input class="in" id="ac-confirm" type="password" [(ngModel)]="confirm" placeholder="Retapez le mot de passe" autocomplete="new-password">
+      </div>
+
+      <p class="error" style="color: #ff4d4d; font-weight: bold; margin-bottom: 15px;" *ngIf="errorMessage">{{ errorMessage }}</p>
+      <p style="color: #10b981; font-weight: bold; margin-bottom: 15px;" *ngIf="successMessage">{{ successMessage }}</p>
+
+      <button class="btn btn-ai btn-lg" (click)="onSubmit()" [disabled]="loading">
+        {{ loading ? 'Activation…' : 'Activer mon compte' }}
+      </button>
+
+      <div class="sep">ou</div>
+
+      <p class="alt">Retour à la <a class="link" routerLink="/organizer-login">connexion organisateur</a></p>
+    </div>
+  </div>
+</div>

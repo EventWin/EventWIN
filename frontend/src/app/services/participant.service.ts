@@ -22,6 +22,40 @@ export class ParticipantService {
     return this.http.post(`${this.apiUrl}login/`, { email, password });
   }
 
+  logout(): Observable<any> {
+    return this.http.post(`${this.apiUrl}logout/`, {});
+  }
+
+  me(): Observable<any> {
+    return this.http.get(`${this.apiUrl}me/`);
+  }
+
+  acceptInvitation(token: string, password: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}accept_invitation/`, { token, password });
+  }
+
+  requestPasswordReset(email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}request_password_reset/`, { email });
+  }
+
+  confirmPasswordReset(token: string, password: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}confirm_password_reset/`, { token, password });
+  }
+
+  invitationErrorMessage(err: any): string {
+    if (!err?.status || err.status >= 500) {
+      return 'Serveur API injoignable. Vérifiez que le backend tourne sur http://127.0.0.1:8000.';
+    }
+    return err?.error?.error || 'Lien d’invitation invalide ou expiré.';
+  }
+
+  resetErrorMessage(err: any): string {
+    if (!err?.status || err.status >= 500) {
+      return 'Serveur API injoignable. Vérifiez que le backend tourne sur http://127.0.0.1:8000.';
+    }
+    return err?.error?.error || 'Une erreur est survenue. Réessayez.';
+  }
+
   register(fullName: string, email: string, password?: string): Observable<any> {
     return this.http.post(`${this.apiUrl}register/`, { full_name: fullName, email, password });
   }

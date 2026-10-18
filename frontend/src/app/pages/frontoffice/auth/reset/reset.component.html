@@ -1,0 +1,66 @@
+<div class="auth">
+  <div class="auth-story">
+    <div class="logo" style="margin-bottom: 30px; text-align: left;">
+      <img src="/assets/images/logo-eventtwin.png" alt="EventTwin Logo" style="height: 100px;">
+    </div>
+    <div style="margin-top: 40px;">
+      <h1 class="auth-head">Mot de passe <span>oublié</span> ?</h1>
+      <p class="auth-sub">Nous vous enverrons un lien temporaire et sécurisé pour choisir un nouveau mot de passe. Aucun mot de passe ne circule par e-mail.</p>
+    </div>
+    <div class="stage" style="margin-top: 40px; display: flex; justify-content: center;">
+      <img src="/assets/images/mascot.svg" alt="Twin Mascot" width="320" height="320">
+    </div>
+  </div>
+  <div class="auth-panel">
+    <div class="auth-card">
+      <!-- Étape 1 : demande par e-mail -->
+      <ng-container *ngIf="step === 'request'">
+        <h2>Réinitialiser le mot de passe</h2>
+        <p>Entrez votre adresse e-mail pour recevoir un lien de réinitialisation.</p>
+
+        <div class="field">
+          <label for="rs-mail">Adresse e-mail</label>
+          <input class="in" id="rs-mail" type="email" [(ngModel)]="email" placeholder="votre.email@entreprise.com" autocomplete="email">
+        </div>
+
+        <p class="error" style="color: #ff4d4d; font-weight: bold; margin-bottom: 15px;" *ngIf="errorMessage">{{ errorMessage }}</p>
+        <p style="color: #10b981; margin-bottom: 15px;" *ngIf="infoMessage">{{ infoMessage }}</p>
+
+        <button class="btn btn-ai btn-lg" (click)="onRequest()" [disabled]="loading">
+          {{ loading ? 'Envoi…' : 'Recevoir le lien' }}
+        </button>
+
+        <div class="sep">ou</div>
+
+        <p class="alt">Retour à la <a class="link" routerLink="/participant-login">connexion</a></p>
+      </ng-container>
+
+      <!-- Étape 2 : confirmation par jeton -->
+      <ng-container *ngIf="step === 'confirm'">
+        <h2>Nouveau mot de passe</h2>
+        <p>Choisissez votre nouveau mot de passe.</p>
+
+        <div class="field">
+          <label for="rs-pass">Nouveau mot de passe</label>
+          <input class="in" id="rs-pass" type="password" [(ngModel)]="password" placeholder="Au moins 8 caractères" autocomplete="new-password">
+        </div>
+
+        <div class="field">
+          <label for="rs-confirm">Confirmer le mot de passe</label>
+          <input class="in" id="rs-confirm" type="password" [(ngModel)]="confirm" placeholder="Retapez le mot de passe" autocomplete="new-password">
+        </div>
+
+        <p class="error" style="color: #ff4d4d; font-weight: bold; margin-bottom: 15px;" *ngIf="errorMessage">{{ errorMessage }}</p>
+        <p style="color: #10b981; font-weight: bold; margin-bottom: 15px;" *ngIf="successMessage">{{ successMessage }}</p>
+
+        <button class="btn btn-ai btn-lg" (click)="onConfirm()" [disabled]="loading">
+          {{ loading ? 'Enregistrement…' : 'Mettre à jour le mot de passe' }}
+        </button>
+
+        <div class="sep">ou</div>
+
+        <p class="alt">Retour à la <a class="link" routerLink="/participant-login">connexion</a></p>
+      </ng-container>
+    </div>
+  </div>
+</div>

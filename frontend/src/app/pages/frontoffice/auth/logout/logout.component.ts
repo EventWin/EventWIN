@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../../services/auth.service';
 
 @Component({
   selector: 'app-logout',
@@ -17,4 +18,11 @@ import { RouterLink } from '@angular/router';
 </div>
   `
 })
-export class LogoutComponent {}
+export class LogoutComponent implements OnInit {
+  constructor(private authService: AuthService) {}
+
+  ngOnInit(): void {
+    // Détruit la session côté serveur (jeton + session) et purge le client.
+    this.authService.logout();
+  }
+}
