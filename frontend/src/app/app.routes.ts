@@ -20,6 +20,7 @@ export const routes: Routes = [
       { path: 'events', loadComponent: () => import('./pages/backoffice/events/events.component').then(m => m.EventsComponent) },
       { path: 'participants', loadComponent: () => import('./pages/backoffice/participants/participants.component').then(m => m.ParticipantsComponent) },
       { path: 'budgets', loadComponent: () => import('./pages/backoffice/budgets/budgets.component').then(m => m.BudgetsComponent) },
+      { path: 'budgets/:eventId', loadComponent: () => import('./pages/backoffice/budgets/budget-detail.component').then(m => m.BudgetDetailComponent) },
       { path: 'teams', loadComponent: () => import('./pages/backoffice/teams/teams.component').then(m => m.TeamsComponent) },
       { path: 'profile', loadComponent: () => import('./pages/frontoffice/participant-profile/participant-profile.component').then(m => m.ParticipantProfileComponent) }
     ]

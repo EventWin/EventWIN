@@ -84,7 +84,7 @@ export interface ApiBudgetCategory {
   budget: string;
   name: string;
   planned_amount: string;
-  actual_amount: string;
+  actual_amount: string | null;
 }
 
 export interface ApiScenario {
