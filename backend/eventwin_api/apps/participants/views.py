@@ -3,7 +3,16 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.organizations.models import Organization
-from .models import EventParticipant, Participant, ParticipantConstraint, ParticipantPreference
+from .models import (
+    EventParticipant,
+    Participant,
+    ParticipantConstraint,
+    ParticipantPreference,
+    UserRole,
+    UserProfile,
+    Organizer,
+    AdminProfile,
+)
 from .serializers import (
     EventParticipantSerializer,
     ParticipantConstraintSerializer,
@@ -130,7 +139,7 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             from apps.organizations.models import Organization
             org = Organization.objects.first()
             is_organizer_or_staff = user.is_superuser or user.is_staff
-            default_role = 'admin' if user.is_superuser else ('organizer' if user.is_staff else 'participant')
+            default_role = UserRole.ADMIN if user.is_superuser else (UserRole.ORGANIZER if user.is_staff else UserRole.PARTICIPANT)
             profile = Participant.objects.create(
                 user=user,
                 organization=org,
@@ -141,11 +150,11 @@ class ParticipantViewSet(viewsets.ModelViewSet):
         full_name = f"{user.first_name} {user.last_name}".strip() if (user.first_name or user.last_name) else user.username
         
         # Déterminer le rôle
-        role = getattr(profile, 'role', 'participant')
+        role = getattr(profile, 'role', UserRole.PARTICIPANT)
         if user.is_superuser:
-            role = 'admin'
+            role = UserRole.ADMIN
         elif user.is_staff:
-            role = 'organizer' if role == 'participant' else role
+            role = UserRole.ORGANIZER if role == UserRole.PARTICIPANT else role
 
         print(f"[LOGIN SUCCESS] Utilisateur: '{user.username}' (id={user.id}), email='{user.email}', rôle='{role}'")
 
@@ -204,11 +213,11 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             user=user,
             defaults={
                 'organization': org,
-                'role': 'participant',
+                'role': UserRole.PARTICIPANT,
                 'status': 'active'
             }
         )
-        participant.role = 'participant'
+        participant.role = UserRole.PARTICIPANT
         if not participant.organization and org:
             participant.organization = org
         participant.save()

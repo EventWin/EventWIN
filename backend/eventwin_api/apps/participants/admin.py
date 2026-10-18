@@ -8,9 +8,18 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from apps.organizations.models import Organization
 
-from .models import Participant, EventParticipant, ParticipantPreference, ParticipantConstraint, Organizer
+from .models import (
+    UserRole,
+    Participant,
+    Organizer,
+    AdminProfile,
+    EventParticipant,
+    ParticipantPreference,
+    ParticipantConstraint
+)
 
-# Affichage du rôle de chaque utilisateur dans la table auth_user
+
+# Affichage enrichi du rôle dans la gestion globale des utilisateurs Django
 class CustomUserAdmin(BaseUserAdmin):
     list_display = ('username', 'email', 'get_role', 'first_name', 'last_name', 'is_staff', 'is_active')
     list_filter = ('is_staff', 'is_superuser', 'is_active')
@@ -20,29 +29,35 @@ class CustomUserAdmin(BaseUserAdmin):
             return "👑 Administrateur"
         if hasattr(obj, 'profile') and obj.profile:
             r = obj.profile.role
-            if r == 'organizer':
+            if r == UserRole.ORGANIZER:
                 return "🏢 Organisateur"
-            elif r == 'participant':
+            elif r == UserRole.PARTICIPANT:
                 return "👤 Participant"
-            elif r == 'admin':
+            elif r == UserRole.ADMIN:
                 return "👑 Administrateur"
         if obj.is_staff:
             return "🏢 Organisateur"
         return "👤 Participant"
-    get_role.short_description = "Rôle"
+    get_role.short_description = "Rôle applicatif"
+
 
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 
+
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
+    """
+    Gestion des comptes Participants.
+    """
     list_display = ('user', 'role', 'phone', 'organization', 'status', 'created_at')
     list_filter = ('role', 'status')
     search_fields = ('user__username', 'user__email', 'phone')
     fields = ('user', 'role', 'organization', 'phone', 'photo', 'status')
 
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(role='participant')
+        return super().get_queryset(request).filter(role=UserRole.PARTICIPANT)
+
 
 class OrganizerAdminForm(forms.ModelForm):
     full_name = forms.CharField(label="Nom Complet de l'Organisateur", max_length=255)
@@ -60,13 +75,15 @@ class OrganizerAdminForm(forms.ModelForm):
         # S'il est nouveau, on crée l'utilisateur et on envoie l'email
         if not instance.user:
             alphabet = string.ascii_letters + string.digits
-            password = ''.join(random.choice(alphabet) for i in range(8))
+            password = ''.join(random.choice(alphabet) for _ in range(8))
             
             user = User.objects.create_user(username=full_name, email=email, password=password)
+            user.is_staff = True
+            user.save()
             instance.user = user
-            instance.role = 'organizer'
+            instance.role = UserRole.ORGANIZER
             
-            # Envoi de l'email
+            # Envoi de l'email officiel
             try:
                 html_content = render_to_string('emails/organizer_invite.html', {
                     'full_name': full_name,
@@ -90,16 +107,29 @@ class OrganizerAdminForm(forms.ModelForm):
             instance.save()
         return instance
 
+
 @admin.register(Organizer)
 class OrganizerAdmin(admin.ModelAdmin):
+    """
+    Gestion des comptes Organisateurs.
+    """
     form = OrganizerAdminForm
     list_display = ('user', 'organization', 'status', 'created_at')
     
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(role='organizer')
-        
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
+        return super().get_queryset(request).filter(role=UserRole.ORGANIZER)
+
+
+@admin.register(AdminProfile)
+class AdminProfileAdmin(admin.ModelAdmin):
+    """
+    Gestion et supervision des Administrateurs du système.
+    """
+    list_display = ('user', 'organization', 'status', 'created_at')
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(role=UserRole.ADMIN)
+
 
 admin.site.register(EventParticipant)
 admin.site.register(ParticipantPreference)

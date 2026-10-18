@@ -24,12 +24,20 @@ def _participant(username, email, role, organization=None, is_superuser=False):
         password='pass1234',
         is_superuser=is_superuser,
     )
-    return Participant.objects.create(
+    p, created = Participant.objects.get_or_create(
         user=user,
-        organization=organization,
-        role=role,
-        status='active',
+        defaults={
+            'organization': organization,
+            'role': role,
+            'status': 'active',
+        }
     )
+    if not created:
+        p.organization = organization
+        p.role = role
+        p.status = 'active'
+        p.save()
+    return p
 
 
 @pytest.fixture
