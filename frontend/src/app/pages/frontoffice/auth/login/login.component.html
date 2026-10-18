@@ -1,0 +1,56 @@
+<div class="auth">
+  <div class="auth-story">
+    <div class="logo" style="margin-bottom: 30px; text-align: left;">
+      <img src="/assets/images/logo-eventtwin.png" alt="EventTwin Logo" style="height: 100px;">
+    </div>
+
+    <div style="margin-top: 40px;">
+      <h1 class="auth-head">Un seul accès, <span>votre espace</span> s'adapte à vous.</h1>
+      <p class="auth-sub">
+        Connectez-vous une seule fois : EventTwin détecte votre rôle et vous dirige
+        automatiquement vers votre interface — Super Administrateur, Organisateur ou Participant.
+      </p>
+    </div>
+
+    <div class="stage" style="margin-top: 40px; display: flex; justify-content: center;">
+      <img src="/assets/images/mascot.svg" alt="Mascotte EventTwin" class="login-mascot">
+    </div>
+  </div>
+
+  <div class="auth-panel">
+    <div class="auth-card">
+      <h2>Connexion</h2>
+      <p>Entrez vos identifiants — votre rôle est déterminé par le serveur.</p>
+
+      <div class="field">
+        <label for="lg-mail">Adresse e-mail</label>
+        <input class="in" id="lg-mail" type="email" [(ngModel)]="email" (keyup.enter)="onLogin()"
+               placeholder="votre.email@entreprise.com" autocomplete="email">
+      </div>
+
+      <div class="field">
+        <label for="lg-pass">Mot de passe</label>
+        <input class="in" id="lg-pass" type="password" [(ngModel)]="password" (keyup.enter)="onLogin()"
+               placeholder="Votre mot de passe" autocomplete="current-password">
+      </div>
+
+      <div class="inline" style="justify-content: flex-end;">
+        <a class="link" routerLink="/forgot">Mot de passe oublié ?</a>
+      </div>
+
+      <p class="error" style="color: #ff4d4d; font-weight: bold; margin-bottom: 15px;"
+         *ngIf="errorMessage">{{ errorMessage }}</p>
+
+      <button class="btn btn-ai btn-lg" style="width: 100%;" (click)="onLogin()" [disabled]="loading">
+        {{ loading ? 'Connexion…' : 'Se connecter' }}
+      </button>
+
+      <div class="sep">ou</div>
+
+      <p class="alt">
+        Pas encore de compte ?
+        <a class="link" routerLink="/participant-register">Créer un compte participant</a>
+      </p>
+    </div>
+  </div>
+</div>

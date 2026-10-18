@@ -80,7 +80,7 @@ export class ResetComponent implements OnInit {
       next: () => {
         this.loading = false;
         this.successMessage = 'Mot de passe mis à jour. Vous pouvez vous connecter.';
-        setTimeout(() => this.router.navigate(['/participant-login']), 1500);
+        setTimeout(() => this.router.navigate(['/login']), 1500);
       },
       error: (err: any) => {
         this.loading = false;

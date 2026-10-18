@@ -60,7 +60,7 @@ export class ActivateComponent implements OnInit {
       next: () => {
         this.loading = false;
         this.successMessage = 'Compte activé ! Vous pouvez maintenant vous connecter.';
-        setTimeout(() => this.router.navigate(['/organizer-login']), 1500);
+        setTimeout(() => this.router.navigate(['/login']), 1500);
       },
       error: (err: any) => {
         this.loading = false;

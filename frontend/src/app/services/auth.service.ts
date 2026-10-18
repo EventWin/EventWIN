@@ -24,6 +24,19 @@ const KEY_ID = 'participant_id';
 const KEY_NAME = 'participant_name';
 const KEY_EMAIL = 'participant_email';
 
+/**
+ * Interface d'accueil associée à chaque rôle. Le rôle est renvoyé par le
+ * serveur à la connexion ; l'utilisateur ne le choisit jamais.
+ *  - admin      → tableau de bord Super Administrateur ;
+ *  - organizer  → espace Organisateur ;
+ *  - participant→ espace Participant.
+ */
+export const ROLE_HOME: Record<'admin' | 'organizer' | 'participant', string> = {
+  admin: '/app/supervision',
+  organizer: '/app/home',
+  participant: '/app/profile',
+};
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private state: AuthState = this.readStorage();
@@ -88,6 +101,30 @@ export class AuthService {
     return this.participantService.login(email, password);
   }
 
+  /**
+   * Recharge l'identité **depuis le serveur** (``/me``). Le rôle local reste
+   * un simple confort d'affichage : il est réaligné sur la vérité serveur à
+   * chaque entrée dans l'espace protégé, ce qui neutralise toute altération du
+   * ``localStorage``. En cas de jeton invalide, l'intercepteur déconnecte.
+   */
+  refresh(): void {
+    if (!this.state.token) {
+      return;
+    }
+    this.participantService.me().subscribe({
+      next: (profile: any) =>
+        this.commit({
+          role: profile?.role || 'participant',
+          participantId: profile?.id || null,
+          fullName: profile?.full_name || null,
+          email: profile?.email || null,
+        }),
+      error: () => {
+        /* L'intercepteur gère le 401 ; on ignore les autres erreurs réseau. */
+      },
+    });
+  }
+
   logout(): void {
     // Le serveur détruit session + jeton ; on nettoie le client quoi qu'il arrive.
     this.participantService.logout().subscribe({ error: () => {} });
@@ -104,12 +141,29 @@ export class AuthService {
     });
   }
 
+  /** Route d'accueil du rôle courant (redirection après connexion). */
+  homeRoute(): string {
+    return ROLE_HOME[this.state.role ?? 'participant'];
+  }
+
   get token(): string | null {
     return this.state.token;
   }
 
   get role(): AuthState['role'] {
     return this.state.role;
+  }
+
+  get participantId(): string | null {
+    return this.state.participantId;
+  }
+
+  get fullName(): string | null {
+    return this.state.fullName;
+  }
+
+  get email(): string | null {
+    return this.state.email;
   }
 
   get isAuthenticated(): boolean {
@@ -122,5 +176,9 @@ export class AuthService {
 
   get isAdmin(): boolean {
     return this.state.role === 'admin';
+  }
+
+  get isParticipant(): boolean {
+    return this.state.role === 'participant';
   }
 }

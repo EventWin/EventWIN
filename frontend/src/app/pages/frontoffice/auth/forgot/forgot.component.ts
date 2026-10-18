@@ -19,7 +19,7 @@ import { RouterLink } from '@angular/router';
       <p>Indiquez votre e-mail, nous envoyons un lien valable une heure.</p>
       <div class="field"><label for="fg-m">Adresse e-mail</label><input class="in" id="fg-m" type="email" placeholder="lea.marchand@atlas-group.fr"></div>
       <button class="btn btn-ai btn-lg">Envoyer le lien</button>
-      <p class="alt"><a class="link" routerLink="/participant-login">Retour à la connexion</a></p>
+      <p class="alt"><a class="link" routerLink="/login">Retour à la connexion</a></p>
     </div>
   </div>
 </div>

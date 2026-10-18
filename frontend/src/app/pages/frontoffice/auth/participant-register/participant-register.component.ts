@@ -38,7 +38,9 @@ export class ParticipantRegisterComponent {
         this.router.navigate(['/participant-onboarding']);
       },
       error: (err: any) => {
-        this.errorMessage = 'Cet e-mail est déjà utilisé ou invalide.';
+        // On remonte le message exact du serveur (mot de passe trop faible,
+        // e-mail déjà utilisé, format invalide…) plutôt qu'un texte générique.
+        this.errorMessage = err?.error?.error || 'Cet e-mail est déjà utilisé ou invalide.';
       }
     });
   }

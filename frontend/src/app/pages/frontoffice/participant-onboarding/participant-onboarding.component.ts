@@ -42,7 +42,7 @@ export class ParticipantOnboardingComponent implements OnInit {
   ngOnInit() {
     this.participantId = localStorage.getItem('participant_id') || '';
     if (!this.participantId) {
-      this.router.navigate(['/participant-login']);
+      this.router.navigate(['/login']);
     }
   }
 

@@ -3,10 +3,14 @@ import { adminGuard, authGuard, organizerGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./pages/frontoffice/landing/landing.component').then(m => m.LandingComponent), pathMatch: 'full' },
-  { path: 'participant-login', loadComponent: () => import('./pages/frontoffice/auth/participant-login/participant-login.component').then(m => m.ParticipantLoginComponent) },
-  { path: 'admin-login', loadComponent: () => import('./pages/backoffice/auth/admin-login/admin-login.component').then(m => m.AdminLoginComponent) },
+  // Interface de connexion **unique** pour tous les rôles : l'utilisateur ne
+  // choisit pas son rôle, le serveur le détermine et l'app redirige.
+  { path: 'login', loadComponent: () => import('./pages/frontoffice/auth/login/login.component').then(m => m.LoginComponent) },
+  // Anciennes URL conservées pour les liens déjà partagés ou mis en favori.
+  { path: 'participant-login', redirectTo: 'login', pathMatch: 'full' },
+  { path: 'admin-login', redirectTo: 'login', pathMatch: 'full' },
+  { path: 'organizer-login', redirectTo: 'login', pathMatch: 'full' },
   { path: 'participant-onboarding', loadComponent: () => import('./pages/frontoffice/participant-onboarding/participant-onboarding.component').then(m => m.ParticipantOnboardingComponent) },
-  { path: 'organizer-login', loadComponent: () => import('./pages/backoffice/auth/organizer-login/organizer-login.component').then(m => m.OrganizerLoginComponent) },
   { path: 'participant-register', loadComponent: () => import('./pages/frontoffice/auth/participant-register/participant-register.component').then(m => m.ParticipantRegisterComponent) },
   { path: 'forgot', loadComponent: () => import('./pages/frontoffice/auth/forgot/forgot.component').then(m => m.ForgotComponent) },
   // Activation d'un compte organisateur invité + réinitialisation de mot de passe :

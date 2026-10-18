@@ -25,7 +25,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (error.status === 401) {
         // Jeton refusé : on purge la session locale pour éviter une boucle.
         auth.clear();
-        router.navigate(['/participant-login']);
+        router.navigate(['/login']);
       }
       return throwError(() => error);
     })

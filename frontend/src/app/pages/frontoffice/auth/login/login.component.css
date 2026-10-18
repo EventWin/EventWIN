@@ -1,0 +1,12 @@
+/* Mascotte de la colonne narrative : fluide et sans débordement. */
+.login-mascot {
+  width: 320px;
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 900px) {
+  .login-mascot {
+    width: 220px;
+  }
+}

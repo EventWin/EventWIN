@@ -1,7 +1,7 @@
 import { Component, HostListener, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { ParticipantService } from '../../services/participant.service';
+import { AuthService } from '../../services/auth.service';
 import { EventContextService } from '../../twin/event-context.service';
 
 @Component({
@@ -44,30 +44,34 @@ export class TopbarComponent implements OnInit {
   initials = '';
 
   constructor(
-    private participantService: ParticipantService,
+    private authService: AuthService,
     private router: Router,
     readonly context: EventContextService
   ) {}
 
   ngOnInit() {
-    const id = localStorage.getItem('participant_id');
-    const role = localStorage.getItem('participant_role');
-    const name = localStorage.getItem('participant_name') || 'Utilisateur';
-
-    if (id && role) {
-      this.fullName = name;
-      this.role = role === 'admin' ? 'Administrateur' : (role === 'organizer' ? 'Organisateur' : 'Participant');
-      this.initials = this.fullName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'U';
-    } else {
+    // Un super-administrateur n'a **pas** de profil Participant : on se fie au
+    // rôle (et non à l'identifiant de profil) pour valider la session.
+    if (!this.authService.isAuthenticated) {
       this.logout();
+      return;
     }
+    this.fullName = this.authService.fullName || 'Utilisateur';
+    this.role = this.authService.role === 'admin'
+      ? 'Administrateur'
+      : (this.authService.role === 'organizer' ? 'Organisateur' : 'Participant');
+    this.initials = this.fullName
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase() || 'U';
   }
 
   logout() {
-    localStorage.removeItem('participant_id');
-    localStorage.removeItem('participant_role');
-    localStorage.removeItem('participant_name');
-    this.router.navigate(['/participant-login']);
+    // Le serveur détruit la session + le jeton ; on purge le client.
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 
   toggleMenu(event: Event) {
