@@ -129,6 +129,7 @@ def send_invitation_email(invitation: OrganizerInvitation, raw_token: str):
     return ok, error
 
 
+@transaction.atomic
 def accept_invitation(raw_token: str, password: str):
     """Active le compte avec le mot de passe choisi. Jeton à **usage unique**.
 

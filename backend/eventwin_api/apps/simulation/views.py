@@ -1,13 +1,13 @@
 from rest_framework import viewsets
 
-from apps.core.permissions import events_manageable
+from apps.core.permissions import EventBoundWriteMixin, events_manageable
 from apps.event_filter import EventFilterMixin
 
 from .models import Scenario, ScenarioResult
 from .serializers import ScenarioResultSerializer, ScenarioSerializer
 
 
-class ScenarioViewSet(EventFilterMixin, viewsets.ModelViewSet):
+class ScenarioViewSet(EventBoundWriteMixin, EventFilterMixin, viewsets.ModelViewSet):
     """Scénarios du jumeau numérique — bornés aux événements administrés.
 
     Un scénario est une donnée d'organisation (simulation, hypothèses) :
@@ -26,7 +26,7 @@ class ScenarioViewSet(EventFilterMixin, viewsets.ModelViewSet):
         )
 
 
-class ScenarioResultViewSet(viewsets.ModelViewSet):
+class ScenarioResultViewSet(EventBoundWriteMixin, viewsets.ModelViewSet):
     """Résultats de simulation — bornés aux scénarios des événements administrés."""
 
     queryset = ScenarioResult.objects.select_related('scenario').all().order_by('-calculated_at')

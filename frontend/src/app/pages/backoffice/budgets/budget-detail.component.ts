@@ -300,7 +300,12 @@ const MAX_ROWS = 20;
           <!-- Colonne 2 : budget total -->
           <div class="rcol">
             <h3>Budget total estimé</h3>
-            <div class="tot n">{{ displayTotal | number:'1.2-2' }} €</div>
+            <div class="tot n" *ngIf="pricedCount > 0">{{ displayTotal | number:'1.2-2' }} €</div>
+            <div class="tot none" *ngIf="pricedCount === 0">Aucun poste chiffré</div>
+            <p class="mini mut" *ngIf="pricedCount === 0">
+              Aucune ressource n'a encore reçu de prix : le total n'est pas
+              « 0 € », il est inconnu tant que l'analyse IA n'a rien chiffré.
+            </p>
             <span class="badge" *ngIf="budgetAvailable" [class.ko]="over" [class.ok]="!over">
               {{ budgetStatusText }}
             </span>
@@ -324,7 +329,7 @@ const MAX_ROWS = 20;
             </p>
 
             <!-- Chiffres distincts, tous recalculés par le backend -->
-            <div class="figs" *ngIf="figures">
+            <div class="figs" *ngIf="figures && pricedCount > 0">
               <div class="kv"><span>Budget maximal</span>
                 <b class="n">{{ figures.budget_max == null ? 'Non défini'
                   : (figures.budget_max | number:'1.2-2') + ' €' }}</b></div>
@@ -754,6 +759,7 @@ export class BudgetDetailComponent implements OnInit {
 
   get budgetStatusText(): string {
     if (!this.budgetAvailable) return 'Budget non défini';
+    if (!this.pricedCount) return 'Aucun poste chiffré';
     if (this.over) return `Dépassement certain de ${this.eur(this.absRemaining)}`;
     if (this.analysis?.incomplete) {
       return `Total partiel · reste maximal ${this.eur(this.absRemaining)}`;
@@ -766,6 +772,15 @@ export class BudgetDetailComponent implements OnInit {
     const analyse = this.analysis?.computed?.total_expenses;
     if (this.aiState === 'ok' && analyse != null) return Number(analyse);
     return Number(this.summary?.total_expenses) || 0;
+  }
+
+  get pricedCount(): number {
+    return Number(
+      this.analysis?.computed?.priced_count ??
+      this.analysis?.priced_count ??
+      this.summary?.priced_count ??
+      (this.aiState === 'ok' && this.analysis ? (this.understoodItems.filter(i => !!i.total).length) : 0)
+    ) || 0;
   }
 
   /**

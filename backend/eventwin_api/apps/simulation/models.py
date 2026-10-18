@@ -26,3 +26,16 @@ class ScenarioResult(UUIDTimestampedModel):
     predicted_satisfaction = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     notes = models.TextField(blank=True)
     calculated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(predicted_cost__gte=0),
+                name='scenario_result_cost_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(predicted_satisfaction__gte=0)
+                & models.Q(predicted_satisfaction__lte=100),
+                name='scenario_result_satisfaction_range',
+            ),
+        ]

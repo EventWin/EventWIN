@@ -94,6 +94,25 @@ class Event(UUIDTimestampedModel):
     bus_vip_count = models.IntegerField(default=0)
     bus_vip_capacity = models.IntegerField(default=20)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(target_budget__gte=0),
+                name='event_target_budget_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(participant_target__gte=0)
+                & models.Q(participant_expected__gte=0),
+                name='event_participant_targets_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(start_date__isnull=True)
+                | models.Q(end_date__isnull=True)
+                | models.Q(end_date__gte=models.F('start_date')),
+                name='event_dates_ordered',
+            ),
+        ]
+
     def __str__(self):
         return self.name
 
@@ -120,6 +139,14 @@ class EventScheduleItem(UUIDTimestampedModel):
     category = models.CharField(max_length=100, blank=True)
     location = models.CharField(max_length=255, blank=True)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(ends_at__gte=models.F('starts_at')),
+                name='schedule_item_times_ordered',
+            ),
+        ]
+
 
 class Resource(UUIDTimestampedModel):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='resources')
@@ -127,3 +154,15 @@ class Resource(UUIDTimestampedModel):
     name = models.CharField(max_length=255)
     capacity = models.IntegerField(default=0)
     unit_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(capacity__gte=0),
+                name='resource_capacity_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(unit_cost__gte=0),
+                name='resource_unit_cost_nonnegative',
+            ),
+        ]

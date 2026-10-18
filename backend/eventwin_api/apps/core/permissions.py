@@ -14,6 +14,7 @@ Le rôle est **toujours** lu côté serveur (profil ``Participant`` ou
 une protection : ces permissions sont la seule barrière.
 """
 from django.db.models import Q
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
 
 from apps.participants.models import Participant
@@ -167,3 +168,35 @@ class EventScopedQuerysetMixin:
         queryset = super().get_queryset()
         visible = events_visible(self.request.user)
         return queryset.filter(**{f'{self.event_field}__in': visible})
+
+
+class EventBoundWriteMixin:
+    """Contrôle de propriété **à la création** d'une entité rattachée à un événement.
+
+    DRF n'applique jamais ``get_queryset()`` à une création : le bornage de la
+    liste protège la lecture, l'update et le delete (404 pour un objet hors
+    périmètre), mais **pas le POST**. Sans ce contrôle, n'importe quel compte
+    authentifié pouvait rattacher un scénario, une ressource, un créneau de
+    planning ou une évaluation transport à l'événement d'autrui (IDOR écriture).
+
+    La lecture reste ouverte aux comptes authentifiés (déjà bornée par la vue).
+    ``_target_event`` résout l'événement depuis le corps de requête, ou depuis
+    l'objet référencé (le ``scenario`` d'un résultat de simulation).
+    """
+
+    def perform_create(self, serializer):
+        event = self._target_event(serializer.validated_data)
+        if event is None:
+            raise PermissionDenied('Rattachement impossible : aucun événement fourni.')
+        if not can_manage_event(self.request.user, event):
+            raise PermissionDenied(
+                'Seul l’organisateur de l’événement peut ajouter ces données.'
+            )
+        serializer.save()
+
+    @staticmethod
+    def _target_event(validated_data):
+        event = validated_data.get('event')
+        if event is None:
+            event = getattr(validated_data.get('scenario'), 'event', None)
+        return event

@@ -239,6 +239,12 @@ class QuizQuestion(UUIDTimestampedModel):
 
     class Meta:
         ordering = ['position', 'created_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(position__gte=0),
+                name='quiz_question_position_nonnegative',
+            ),
+        ]
 
     def __str__(self):
         return self.prompt

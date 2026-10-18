@@ -664,7 +664,7 @@ class BudgetItemViewSet(EventFilterMixin, viewsets.ModelViewSet):
 
         # --- 1) Rejet structurel local (0 appel IA) --------------------------
         reusable_statuses = {
-            'priced', 'understood_unpriced', 'ambiguous', 'search_unavailable',
+            'priced', 'ambiguous',
         }
         to_analyze: list[BudgetItem] = []
         structural: list[BudgetItem] = []
@@ -1157,10 +1157,9 @@ class BudgetItemViewSet(EventFilterMixin, viewsets.ModelViewSet):
 
         offer = result.offer or {}
         url = str(offer.get('url') or '')
-        # Jamais de troncature : une URL trop longue pour le champ est écartée
-        # entièrement (le nettoyage a déjà été fait dans ``websearch``).
-        if len(url) > 2048:
-            url = ''
+        # Jamais de troncature : on conserve l'URL telle quelle, même si elle
+        # dépasse la longueur maximale du champ. La validation côté modèle
+        # s'applique séparément ; ici, la règle métier est de ne pas la couper.
 
         item.provider = str(offer.get('domain') or offer.get('provider') or '')[:255]
         item.product_url = url

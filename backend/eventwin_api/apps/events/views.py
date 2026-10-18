@@ -2,10 +2,10 @@ from django.db.models import Q
 from rest_framework import viewsets
 
 from apps.core.permissions import (
+    EventBoundWriteMixin,
     EventScopedQuerysetMixin,
     IsEventManager,
     IsOrganizer,
-    IsSuperAdminOrReadOnly,
     can_manage_event,
     events_manageable,
     events_visible,
@@ -32,7 +32,16 @@ class EventViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('update', 'partial_update', 'destroy'):
             return [IsEventManager()]
-        return [IsSuperAdminOrReadOnly()] if self.action in ('create',) else super().get_permissions()
+        if self.action == 'create':
+            # Un organisateur crée **ses** événements : ``perform_create``
+            # impose le propriétaire (utilisateur authentifié) et l'organisation
+            # de son profil, jamais celle d'un tiers. Restreindre ``create`` au
+            # super-admin (comme pour les organisations) interdisait aux
+            # organisateurs de créer le moindre événement — le parcours central
+            # de l'application était bloqué. ``IsOrganizer`` englobe le
+            # super-administrateur ; un participant reste refusé.
+            return [IsOrganizer()]
+        return super().get_permissions()
 
     def get_queryset(self):
         return events_visible(self.request.user).select_related(
@@ -60,7 +69,7 @@ class EventViewSet(viewsets.ModelViewSet):
         super().perform_destroy(instance)
 
 
-class EventScheduleItemViewSet(EventFilterMixin, viewsets.ModelViewSet):
+class EventScheduleItemViewSet(EventBoundWriteMixin, EventFilterMixin, viewsets.ModelViewSet):
     """Planning : borné aux événements consultables par l'utilisateur."""
 
     queryset = EventScheduleItem.objects.select_related('event').all().order_by('starts_at')
@@ -72,7 +81,7 @@ class EventScheduleItemViewSet(EventFilterMixin, viewsets.ModelViewSet):
         ).select_related('event').order_by('starts_at')
 
 
-class ResourceViewSet(EventFilterMixin, viewsets.ModelViewSet):
+class ResourceViewSet(EventBoundWriteMixin, EventFilterMixin, viewsets.ModelViewSet):
     """Ressources (hors budget) : bornées aux événements consultables."""
 
     queryset = Resource.objects.select_related('event').all().order_by('name')

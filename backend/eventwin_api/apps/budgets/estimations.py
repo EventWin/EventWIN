@@ -60,15 +60,16 @@ STATUS_AMBIGUOUS = 'ambiguous'
 STATUS_FAILED = 'analysis_failed'
 
 DEFAULT_UNPRICED_REASON = (
-    "Le service est identifié, mais son tarif dépend d'éléments non précisés "
-    "(durée, capacité, déplacement, options) : aucun montant n'a été proposé "
-    "plutôt que d'en inventer un."
+    "Ressource comprise, mais le modèle n'a proposé aucun montant : elle reste "
+    "non chiffrée plutôt que de voir un prix inventé."
 )
 
 # Schéma de sortie imposé au modèle. `total_estimate` n'y figure plus : le
 # total est calculé par l'application (quantité × prix unitaire).
 SCHEMA_SPEC = """
-Réponds strictement avec cet objet JSON :
+Réponds strictement avec cet objet JSON (les valeurs ci-dessous montrent la
+**forme** attendue avec un exemple chiffré : remplace-les par tes propres
+estimations pour chaque ressource, ne recopie pas 12.5) :
 {
   "results": [
     {
@@ -76,9 +77,9 @@ Réponds strictement avec cet objet JSON :
       "understood": true,
       "ambiguity_reason": "",
       "unpriced_reason": "",
-      "unit_price_estimate": null,
-      "price_range_min": null,
-      "price_range_max": null,
+      "unit_price_estimate": 12.5,
+      "price_range_min": 8,
+      "price_range_max": 20,
       "chosen_index": null,
       "match_note": ""
     }
@@ -103,20 +104,27 @@ def _system_prompt() -> str:
         "- Tu réponds pour **CHAQUE** ressource fournie, sans exception : une "
         "entrée par \"expense_id\", en recopiant l'identifiant **exactement** tel "
         "qu'il t'est donné et dans le même ordre. Ne saute aucune ressource, même "
-        "si tu hésites : tu réponds alors avec un prix nul et une raison.\n"
+        "si tu hésites : tu réponds alors avec \"unit_price_estimate\": null et "
+        "une raison précise. N'utilise jamais 0 pour représenter un prix inconnu.\n"
         "- Les prix que tu proposes sont des PRIX UNITAIRES en euros (€), hors "
         "quantité. Ne donne JAMAIS de total : il est calculé par l'application.\n"
-        "- Ne fournis jamais de montant inventé ou déduit de ta mémoire. Un coût "
-        "n'est accepté que si une page fournisseur directe et accessible fournit "
-        "un tarif vérifiable ; sinon laisse le prix nul et explique précisément "
-        "pourquoi le coût reste inconnu.\n"
-        "- Exploite la description et le contexte réellement fournis "
+        "- Tu peux fournir une estimation IA indicative lorsque la ressource est "
+        "comprise et que son unité est suffisamment décrite. Cette estimation "
+        "n'est jamais un prix fournisseur réel et doit rester marquée "
+        "\"ai_estimate\" par l'application.\n"
+        "- Le nom, la catégorie et la quantité peuvent suffire à comprendre une "
+        "ressource et à produire une estimation indicative lorsque son unité est "
+        "claire ; une description vide n'est donc pas, à elle seule, un motif "
+        "pour refuser le chiffrage. Une description vide ne justifie jamais, à "
+        "elle seule, un \"unit_price_estimate\" à null. Exploite ensuite la "
+        "description et le contexte réellement fournis "
         "(participants, durée, achat ou location, lieu, date) pour affiner "
         "l'estimation ; ne complète jamais une donnée absente par une valeur "
         "inventée.\n"
-        "- Les candidats web sont obligatoires pour chiffrer. L'absence de "
-        "candidat, une page inaccessible ou une page sans tarif vérifiable "
-        "implique un coût inconnu, jamais une estimation.\n"
+        "- Les candidats web servent à fournir un lien réel et, si possible, un "
+        "prix vérifié. L'absence de candidat ou une page sans tarif vérifiable "
+        "n'interdit pas une estimation IA indicative, mais interdit de la "
+        "présenter comme un prix fournisseur.\n"
         "- Si tu comprends la ressource mais que le montant unitaire dépend "
         "entièrement d'une information absente (durée, capacité, livraison, achat "
         "ou location non précisés), réponds \"understood\": true, "
@@ -125,8 +133,8 @@ def _system_prompt() -> str:
         "même phrase pour plusieurs ressources et ne recopie pas les "
         "\"local_signals\" : c'est un contexte technique, pas une raison.\n"
         "- Réserve \"understood\": false au nom ou à la description qui "
-        "n'identifient rien. Un assemblage de lettres sans voyelle ni "
-        "signification (par exemple « xqzrt »), un mot inventé, une faute de frappe "
+        "n'identifient rien. Un assemblage de lettres sans signification, un mot "
+        "inventé ou une faute de frappe "
         "non reconnaissable ne désignent aucun produit ni service : ce n'est PAS "
         "compris. De même, un mot trop vague pour désigner une chose précise n'est "
         "pas compris. N'invente jamais un service plausible derrière un mot que tu "
@@ -256,9 +264,13 @@ def build_batch_prompt(event_context: dict, expenses: list[dict]) -> str:
         "",
         f"Réponds avec **exactement {len(expenses)} entrée(s)** dans \"results\" : "
         "une entrée par ressource ci-dessus, dans le même ordre, en recopiant son "
-        "\"expense_id\" à l'identique. N'omets aucune ressource, même si tu n'as ni "
-        "prix ni candidat : réponds alors \"understood\": true, "
-        "\"unit_price_estimate\": null et une \"unpriced_reason\".",
+        "\"expense_id\" à l'identique. N'omets aucune ressource. Pour un bien "
+        "courant (chaise, table, nappe, sono…), donne TOUJOURS un "
+        "\"unit_price_estimate\" en euros (prix de location ou d'achat typique) "
+        "et une fourchette, même sans description et même sans candidat web. "
+        "Réserve null (jamais 0) au seul cas d'un service dont le tarif dépend "
+        "entièrement d'une information absente ; ajoute alors une "
+        "\"unpriced_reason\" propre à cette ressource.",
         "",
         SCHEMA_SPEC,
     ]
@@ -390,9 +402,21 @@ def _validate_one(raw: dict, expense: dict, candidates: list[dict], query: str) 
     unit_price = positive_decimal_or_none(raw.get('unit_price_estimate'))
     low, high = parse_range(raw.get('price_range_min'), raw.get('price_range_max'))
 
+    # Filet de sécurité : le modèle fournit parfois une **fourchette** honnête
+    # sans oser le prix unitaire. Le milieu de la fourchette devient alors un
+    # prix indicatif (étiqueté `ai_estimate`), plutôt qu'une ligne perdue qui
+    # ramènerait le budget à 0 €. Aucune donnée inventée : les bornes viennent
+    # du modèle.
+    if unit_price is None and low is not None and high is not None and high > 0:
+        unit_price = ((low + high) / 2).quantize(Decimal('0.01'))
+        result.warnings.append(
+            "Prix unitaire déduit du milieu de la fourchette IA (aucun prix "
+            "unitaire fourni) : estimation indicative."
+        )
+
     if unit_price is None:
-        # Une **fourchette** seule reste indicative : elle ne devient jamais un
-        # prix. Sans prix unitaire explicite, la ressource reste non chiffrée.
+        # Ni prix unitaire ni fourchette exploitable : la ressource reste non
+        # chiffrée, jamais remplacée par zéro.
         result.status = STATUS_UNPRICED
         result.reason = str(raw.get('unpriced_reason') or '').strip() or DEFAULT_UNPRICED_REASON
         return result
@@ -405,46 +429,61 @@ def _validate_one(raw: dict, expense: dict, candidates: list[dict], query: str) 
     # --- Offre : index dans une liste fermée, puis revalidation ------------
     index = clean_choice_index(raw.get('chosen_index'), len(candidates))
     result.chosen_index = index
-    candidate = _candidate_at(candidates, index)
-    if candidate is not None:
+    candidate_indices = []
+    if index is not None:
+        candidate_indices.append(index)
+    candidate_indices.extend(
+        candidate_index for candidate_index in range(len(candidates))
+        if candidate_index not in candidate_indices
+    )
+    selected_offer = None
+    selected_note = ''
+    selected_verdict = ''
+    saw_rejected = False
+    candidate_verdicts = []
+    for candidate_index in candidate_indices:
+        candidate = _candidate_at(candidates, candidate_index)
         offer, note, verdict = _validate_offer(
             candidate, query, str(expense.get('name') or ''),
         )
         if note:
             result.warnings.append(note)
         if verdict == 'rejected':
-            # Page **prouvée** non pertinente (identité absente ou page non
-            # marchande) : l'estimation de l'IA n'a plus aucun fondement, le
-            # prix et le lien tombent ensemble.
+            saw_rejected = True
+        candidate_verdicts.append(verdict)
+        if verdict == 'verified':
+            selected_offer = offer
+            selected_note = note
+            selected_verdict = verdict
+            result.chosen_index = candidate_index
+            break
+
+    if selected_verdict == 'verified':
+        # Seule une page vérifiée peut apparaître comme lien fournisseur.
+        result.offer = selected_offer
+        result.match_note = str(raw.get('match_note') or '').strip()
+        if selected_offer is not None and selected_offer.get('price_verified'):
+            result.unit_price = selected_offer['price']
+            result.price_source = 'real_offer'
+        else:
+            result.price_source = 'ai_estimate'
+    else:
+        if saw_rejected and candidate_verdicts and all(
+            verdict == 'rejected' for verdict in candidate_verdicts
+        ) and len(candidate_verdicts) == len(candidates):
             result.status = STATUS_UNPRICED
             result.unit_price = None
             result.price_range_min = None
             result.price_range_max = None
-            result.price_explanation = ''
-            result.offer = None
             result.price_source = ''
-            result.match_note = ''
             result.reason = (
-                "Aucun tarif fournisseur vérifiable n'est disponible pour cette "
-                "ressource : la page trouvée n'est pas une fiche produit "
-                "pertinente. Complétez la description ou relancez la recherche."
+                "Aucun tarif fournisseur vérifiable n'est disponible : aucune "
+                "fiche fournisseur pertinente n'a été vérifiée pour cette ressource."
             )
             return result
-        # ``verified`` ou ``unreachable`` : la page réelle est conservée.
-        result.offer = offer
-        result.match_note = str(raw.get('match_note') or '').strip()
-        if offer is not None and offer.get('price_verified'):
-            # Seul cas où le prix n'est plus une estimation : le tarif a
-            # réellement été lu sur la page retenue.
-            result.unit_price = offer['price']
-            result.price_source = 'real_offer'
-        else:
-            # Page réelle sans tarif relevé (ou non atteinte) : le lien reste,
-            # marqué non vérifié, et le prix reste une estimation de l'IA.
-            result.price_source = 'ai_estimate'
-    else:
         # Aucune fiche choisie (ou indice hors bornes) : le prix de l'IA reste
         # une estimation, sans lien.
+        result.offer = None
         result.price_source = 'ai_estimate'
         if raw.get('chosen_index') is not None:
             result.warnings.append("Le lien choisi par l'IA n'existe pas parmi les résultats vérifiés.")

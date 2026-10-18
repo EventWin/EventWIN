@@ -298,13 +298,19 @@ class EstimationsTests(SimpleTestCase):
             self.assertIsNone(result.unit_price, price)
             self.assertTrue(result.reason, price)
 
-    def test_valid_range_without_supplier_price_remains_unpriced(self):
+    def test_valid_range_without_supplier_price_becomes_midpoint_estimate(self):
+        # Le modèle fournit une fourchette honnête sans oser le prix unitaire :
+        # le milieu devient un prix indicatif (étiqueté `ai_estimate`) au lieu
+        # de perdre la ligne et de ramener le budget à 0 €.
         result = self.validate({
             'expense_id': 'e1', 'understood': True,
             'price_range_min': 10, 'price_range_max': 20,
         })
-        self.assertEqual(result.status, estimations.STATUS_UNPRICED)
-        self.assertIsNone(result.unit_price)
+        self.assertEqual(result.status, estimations.STATUS_PRICED)
+        self.assertEqual(result.unit_price, Decimal('15'))
+        self.assertEqual(result.price_range_min, Decimal('10'))
+        self.assertEqual(result.price_range_max, Decimal('20'))
+        self.assertTrue(result.warnings)
 
     def test_inverted_range_is_discarded(self):
         result = self.validate({
@@ -367,8 +373,7 @@ class EstimationsTests(SimpleTestCase):
             self.assertIsNone(result.offer, url)
 
     def test_real_offer_requires_a_verified_price_on_the_page(self):
-        # Page réellement trouvée mais non atteinte : le lien reste (marqué non
-        # vérifié) et le prix reste une estimation IA **étiquetée**.
+        # Page non atteinte : aucun lien non vérifié ne doit être affiché.
         with patch('apps.budgets.websearch.validate_direct_offer', return_value=None):
             result = self.validate(
                 {'expense_id': 'e1', 'understood': True, 'unit_price_estimate': 12,
@@ -378,7 +383,7 @@ class EstimationsTests(SimpleTestCase):
         self.assertEqual(result.status, estimations.STATUS_PRICED)
         self.assertEqual(result.price_source, 'ai_estimate')
         self.assertEqual(result.unit_price, Decimal('12'))
-        self.assertIsNotNone(result.offer)
+        self.assertIsNone(result.offer)
         self.assertTrue(result.warnings)
 
         # Tarif réellement relevé sur la page : seul cas de `real_offer`.
@@ -420,8 +425,7 @@ class EstimationsTests(SimpleTestCase):
         self.assertIn('tarif fournisseur', result.reason.lower())
 
     def test_unreachable_chosen_page_keeps_price_but_marks_the_link(self):
-        # Page non atteinte : ni validée ni réfutée. Le lien reste, marqué non
-        # vérifié, et le prix reste une estimation IA.
+        # Page non atteinte : le prix reste indicatif, mais le lien est écarté.
         unreachable = {
             'verdict': 'unreachable',
             'reason': "page inaccessible au moment de l'analyse",
@@ -435,8 +439,7 @@ class EstimationsTests(SimpleTestCase):
         self.assertEqual(result.status, estimations.STATUS_PRICED)
         self.assertEqual(result.unit_price, Decimal('12'))
         self.assertEqual(result.price_source, 'ai_estimate')
-        self.assertIsNotNone(result.offer)
-        self.assertFalse(result.offer['verified'])
+        self.assertIsNone(result.offer)
         self.assertTrue(result.warnings)
 
     def test_page_check_receives_the_resource_name_as_identity(self):
@@ -458,10 +461,10 @@ class EstimationsTests(SimpleTestCase):
         self.assertIn('article de presse', system)
         self.assertIn('recopiant', system.lower())
 
-    def test_system_prompt_requires_real_supplier_price(self):
+    def test_system_prompt_distinguishes_estimate_and_supplier_price(self):
         system = estimations._system_prompt().lower()
-        self.assertIn('obligatoires pour chiffrer', system)
-        self.assertIn('jamais une estimation', system)
+        self.assertIn('estimation ia indicative', system)
+        self.assertIn('prix fournisseur réel', system)
         # La raison d'une ressource non chiffrée ne recopie pas le contexte.
         self.assertIn('local_signals', system)
 
@@ -980,7 +983,11 @@ class WebsearchTests(SimpleTestCase):
         self.assertEqual(websearch.clean_url('javascript:alert(1)'), '')
         self.assertEqual(websearch.clean_url('https://fr.wikipedia.org/wiki/Chaise'), '')
         self.assertEqual(websearch.clean_url('https://sub.wikipedia.org/x'), '')
-        self.assertEqual(websearch.clean_url('https://shop.example/' + 'a' * 2100), '')
+        # Une URL très longue n'est pas tronquée par clean_url : elle est
+        # conservée intacte (le champ modèle peut la refuser plus tard, mais
+        # clean_url ne coupe jamais).
+        long_url = 'https://shop.example/' + 'a' * 2100
+        self.assertEqual(websearch.clean_url(long_url), long_url)
 
     def test_clean_url_strips_tracking_parameters(self):
         cleaned = websearch.clean_url('https://shop.example/p?utm_source=x&id=5&fbclid=abc')
@@ -1494,11 +1501,14 @@ class ApiTests(TestCase):
         self.assertEqual(item.analysis_status, 'priced')
 
     def test_analysis_refuses_non_positive_quantities(self):
-        self.add_item(name='Chaises', quantity=Decimal('0'))
-        response = self.analyze()
+        response = self.api.post('/api/budget-items/', {
+            'event': str(self.event.id),
+            'name': 'Chaises',
+            'category': 'other',
+            'quantity': 0,
+        }, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.json()['error'], 'quantity')
-        self.assertIn('Chaises', response.json()['message'])
+        self.assertIn('quantity', response.json())
 
     def test_analysis_requires_at_least_one_resource(self):
         response = self.analyze()

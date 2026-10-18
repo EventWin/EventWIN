@@ -125,6 +125,37 @@ class BudgetItem(UUIDTimestampedModel):
 
     class Meta:
         ordering = ['category', 'name']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name='budget_item_quantity_positive',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(min_quantity__isnull=True)
+                | models.Q(min_quantity__gte=0),
+                name='budget_item_min_quantity_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(unit_price__isnull=True)
+                | models.Q(unit_price__gte=0),
+                name='budget_item_unit_price_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(total__isnull=True)
+                | models.Q(total__gte=0),
+                name='budget_item_total_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(price_range_min__isnull=True)
+                | models.Q(price_range_min__gte=0),
+                name='budget_item_price_range_min_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(price_range_max__isnull=True)
+                | models.Q(price_range_max__gte=0),
+                name='budget_item_price_range_max_nonnegative',
+            ),
+        ]
 
     def __str__(self):
         return self.name

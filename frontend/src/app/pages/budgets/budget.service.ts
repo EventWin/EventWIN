@@ -122,6 +122,8 @@ export interface BudgetSummary {
   expenses_count: number;
   /** Ressources écartées de l'analyse (nom ou description incompris). */
   ambiguous_count: number;
+  /** Ressources réellement chiffrées : seules à peser sur le total. */
+  priced_count?: number;
 }
 
 /**
@@ -344,6 +346,8 @@ export interface AiAnalysis {
     };
     ambiguous_count: number;
     unpriced_count?: number;
+    /** Ressources réellement chiffrées : seules à peser sur le total. */
+    priced_count?: number;
     /** Budget maximal, coût initial, reste/dépassement, économies, améliorations, coût final. */
     figures?: AiFigures;
     model: string;

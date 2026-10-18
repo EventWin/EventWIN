@@ -135,8 +135,16 @@ INVITATION_TTL_HOURS = _env_int('INVITATION_TTL_HOURS', 168)
 # Le rôle est toujours lu côté serveur (apps/core/permissions.py).
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
+        # Le token doit venir en **premier** : DRF lit
+        # ``authenticators[0].authenticate_header()`` pour construire l'en-tête
+        # ``WWW-Authenticate``, et ``SessionAuthentication`` renvoie toujours
+        # ``None``. Sans en-tête, ``APIView.handle_exception`` rétrograde 401 en
+        # 403 : le client ne pouvait plus distinguer « jeton expiré / absent »
+        # d'un vrai refus de permission, donc jamais de déconnexion automatique
+        # ni de redirection vers /login. La session reste prise en charge juste
+        # après (les deux classes restent essayées dans l'ordre).
         'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

@@ -1,6 +1,10 @@
 from rest_framework import viewsets
 
-from apps.core.permissions import IsSuperAdminOrReadOnly, events_manageable
+from apps.core.permissions import (
+    EventBoundWriteMixin,
+    IsSuperAdminOrReadOnly,
+    events_manageable,
+)
 
 from .models import TransportAvailabilitySnapshot, TransportCatalogOption, TransportEvaluation
 from .serializers import (
@@ -18,7 +22,7 @@ class TransportCatalogOptionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperAdminOrReadOnly]
 
 
-class TransportAvailabilitySnapshotViewSet(viewsets.ModelViewSet):
+class TransportAvailabilitySnapshotViewSet(EventBoundWriteMixin, viewsets.ModelViewSet):
     """Disponibilités transport — bornées aux événements administrés."""
 
     queryset = (
@@ -38,7 +42,7 @@ class TransportAvailabilitySnapshotViewSet(viewsets.ModelViewSet):
         )
 
 
-class TransportEvaluationViewSet(viewsets.ModelViewSet):
+class TransportEvaluationViewSet(EventBoundWriteMixin, viewsets.ModelViewSet):
     """Évaluations transport — bornées aux événements administrés."""
 
     queryset = (

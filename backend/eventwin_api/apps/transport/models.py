@@ -66,6 +66,25 @@ class TransportAvailabilitySnapshot(UUIDTimestampedModel):
     valid_until = models.DateTimeField(null=True, blank=True)
     raw_payload = models.JSONField(default=dict, blank=True)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(available_seats__isnull=True)
+                | models.Q(available_seats__gte=0),
+                name='transport_available_seats_nonnegative',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(occupancy_percentage__gte=0)
+                & models.Q(occupancy_percentage__lte=100),
+                name='transport_occupancy_percentage_range',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(capacity_confidence__gte=0)
+                & models.Q(capacity_confidence__lte=100),
+                name='transport_capacity_confidence_range',
+            ),
+        ]
+
 
 class TransportEvaluation(UUIDTimestampedModel):
     event = models.ForeignKey(
@@ -88,3 +107,12 @@ class TransportEvaluation(UUIDTimestampedModel):
     score = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     explanation = models.TextField(blank=True)
     evaluated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(estimated_arrival_reliability__gte=0)
+                & models.Q(estimated_arrival_reliability__lte=100),
+                name='transport_arrival_reliability_range',
+            ),
+        ]

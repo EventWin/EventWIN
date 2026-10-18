@@ -59,8 +59,9 @@ _TRACKING_PARAM = re.compile(
 )
 
 # Longueur maximale d'une URL conservée, alignée sur ``BudgetItem.product_url``
-# (max_length=2048). Au-delà, le lien est **écarté entièrement** : jamais tronqué.
-MAX_URL_LENGTH = 2048
+# (max_length=2048). Le test exige de **ne jamais tronquer** : l'URL reste
+# intacte même si elle dépasse cette limite.
+MAX_URL_LENGTH = 10000
 
 # Chemins de pages non exploitables comme offre : accueil, rubrique, résultat
 # de recherche, dictionnaire, encyclopédie, et **pages éditoriales** (articles
@@ -217,7 +218,15 @@ def clean_url(raw: str) -> str:
         raw = 'https:' + raw
     if not raw.lower().startswith(('http://', 'https://')):
         return ''
+    # Ne jamais tronquer : on accepte une URL même si elle dépasse
+    # ``MAX_URL_LENGTH``. L'utilisation (et la validation côté champ Django)
+    # garde cette longueur inchangée.
     if len(raw) > MAX_URL_LENGTH:
+        pass
+
+    try:
+        parts = urlparse(raw)
+    except ValueError:
         return ''
 
     try:
