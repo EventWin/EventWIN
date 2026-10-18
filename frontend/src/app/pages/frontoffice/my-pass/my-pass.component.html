@@ -1,0 +1,290 @@
+<div class="pass-wrapper">
+  <!-- En-tête avec bouton Télécharger en PDF (masqué à l'impression) -->
+  <div class="pass-header no-print">
+    <div class="header-titles">
+      <span class="badge-accent">Accès &amp; Justificatifs Numériques</span>
+      <h1>Mes Pass &amp; Billets d'Événements</h1>
+      <p class="subtitle">Consultez votre pass officiel ou téléchargez votre billet format A4 prêt à imprimer.</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-export-pdf" (click)="printOrDownloadPdf()" title="Télécharger le billet en PDF" aria-label="Télécharger le billet en PDF">
+        <div class="pdf-tag-icon">
+          <svg viewBox="0 0 24 24" class="pdf-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+          </svg>
+          <span class="pdf-pill-label">PDF</span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Onglets de sélection (masqués à l'impression) -->
+  <div class="pass-selector-tabs no-print">
+    <button class="tab-btn" [class.active]="activeTab === 'festival'" (click)="setTab('festival')">
+      <span class="tab-emoji">🎸</span>
+      <div class="tab-info">
+        <strong>Billet Festival / Concert</strong>
+        <span>NeonWaves Music &amp; Digital Festival 2026</span>
+      </div>
+      <span class="tab-pill festival-pill">Pass Festival</span>
+    </button>
+
+    <button class="tab-btn" [class.active]="activeTab === 'seminar'" (click)="setTab('seminar')">
+      <span class="tab-emoji">✈️</span>
+      <div class="tab-info">
+        <strong>Billet Séminaire &amp; Carnet de Route</strong>
+        <span>Séminaire Innovation &amp; Leadership Alpin 2026</span>
+      </div>
+      <span class="tab-pill seminar-pill">Optimisé IA</span>
+    </button>
+  </div>
+
+  <!-- ========================================================
+       BILLET 1 : BILLET FESTIVAL (CLAIR, RAFFINÉ, PLEIN FORMAT A4)
+       ======================================================== -->
+  <div class="ticket-container" *ngIf="activeTab === 'festival'">
+    <div class="luxury-ticket festival-card printable-card">
+      
+      <!-- Section Gauche : Billet Principal -->
+      <div class="ticket-body">
+        
+        <!-- Haut du billet : Marque & En-tête officiel -->
+        <div class="ticket-topline">
+          <div class="ticket-brand">
+            <div class="brand-gem">✦</div>
+            <div class="brand-text">
+              <span class="brand-super">BILLET ÉLECTRONIQUE OFFICIEL D'ACCÈS</span>
+              <strong>EventTwin Live Experience</strong>
+            </div>
+          </div>
+          <div class="ticket-ref-stamp">
+            <span class="stamp-kicker">ÉMIS LE 18/10/2026</span>
+            <span class="stamp-code">CERTIFIÉ EVENTTWIN</span>
+          </div>
+        </div>
+
+        <!-- Titre de l'événement -->
+        <div class="ticket-event-box">
+          <span class="event-category-kicker">Événement Majeur 2026</span>
+          <h2 class="event-title">NeonWaves Music &amp; Digital Festival</h2>
+          <p class="event-tagline">Concerts Live · Expériences Immersives · Scène Neon Arena</p>
+        </div>
+
+        <!-- Informations clés (Date, Lieu, Réf) -->
+        <div class="ticket-info-grid">
+          <div class="info-cell">
+            <span class="info-label">📅 DATES &amp; HORAIRES</span>
+            <strong class="info-val">18 – 20 Juillet 2026</strong>
+            <small class="info-hint">Ouverture des portes : 14h00</small>
+          </div>
+          <div class="info-cell">
+            <span class="info-label">📍 LIEU &amp; ACCÈS</span>
+            <strong class="info-val">ParisLongchamp</strong>
+            <small class="info-hint">Porte A · Espace Scène Neon</small>
+          </div>
+          <div class="info-cell">
+            <span class="info-label">🎟️ N° DE BILLET</span>
+            <strong class="info-val mono-code">{{ ticketCodeFestival }}</strong>
+            <small class="info-hint">Signature numérique vérifiée</small>
+          </div>
+        </div>
+
+        <!-- Carte Porteur du Billet (sans photo ni icône devant le nom) -->
+        <div class="attendee-card">
+          <div class="attendee-meta">
+            <span class="attendee-label">TITULAIRE DU BILLET</span>
+            <h3 class="attendee-name">{{ participantName }}</h3>
+            <span class="attendee-role">{{ participantRole }} · {{ participantOrg }}</span>
+          </div>
+          <div class="attendee-side-info">
+            <span class="side-ref">BILLET NOMINATIF &amp; PERSONNEL</span>
+            <small class="side-hash">ID : {{ ticketCodeFestival }}</small>
+          </div>
+        </div>
+
+        <!-- Avantages & Services Inclus -->
+        <div class="ticket-perks">
+          <div class="perk-item">
+            <span class="perk-bullet">⚡</span>
+            <div>
+              <strong>Coupe-File Immédiat</strong>
+              <small>Passage prioritaire aux bornes</small>
+            </div>
+          </div>
+          <div class="perk-item">
+            <span class="perk-bullet">🍸</span>
+            <div>
+              <strong>Accès Espace Lounge</strong>
+              <small>Espace détente &amp; rafraîchissements</small>
+            </div>
+          </div>
+          <div class="perk-item">
+            <span class="perk-bullet">🎧</span>
+            <div>
+              <strong>Scénographie Immersive 360°</strong>
+              <small>Accès Sunset Garden &amp; Neon Arena</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Note légale en bas de page -->
+        <div class="ticket-legal-note">
+          <span>Billet officiel d'accès édité par EventTwin. Présentez ce pass sur smartphone ou imprimé sur page A4. Valable pour une seule personne.</span>
+        </div>
+
+      </div>
+
+      <!-- Perforation verticale élégante -->
+      <div class="ticket-perforation">
+        <div class="perf-cut top-cut"></div>
+        <div class="perf-dashed"></div>
+        <div class="perf-cut bottom-cut"></div>
+      </div>
+
+      <!-- Section Droite : Volet de Contrôle & QR Code -->
+      <div class="ticket-stub">
+        <div class="stub-heading">
+          <span class="stub-kicker">CONTRÔLE D'ACCÈS</span>
+          <span class="stub-pass-no">#894</span>
+        </div>
+
+        <div class="stub-qr-wrap">
+          <img [src]="qrUrlFestival" alt="QR Code d'accès" class="stub-qr-img">
+          <span class="stub-qr-caption">Scannez ce QR Code aux bornes d'accès du festival</span>
+        </div>
+
+        <div class="stub-security-box">
+          <div class="stub-barcode-lines"></div>
+          <span class="stub-sec-code">AUTHENTIFICATION EVENTTWIN SÉCURISÉE</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================
+       BILLET 2 : BILLET SÉMINAIRE & CARNET DE ROUTE A4
+       ======================================================== -->
+  <div class="ticket-container" *ngIf="activeTab === 'seminar'">
+    <div class="luxury-ticket seminar-card printable-card">
+      
+      <!-- Section Gauche : Billet Séminaire -->
+      <div class="ticket-body">
+        
+        <div class="ticket-topline">
+          <div class="ticket-brand">
+            <div class="brand-gem">✦</div>
+            <div class="brand-text">
+              <span class="brand-super">CARNET DE ROUTE &amp; BILLET OFFICIEL</span>
+              <strong>EventTwin Executive Series</strong>
+            </div>
+          </div>
+          <div class="ticket-ref-stamp">
+            <span class="stamp-kicker">ÉMIS LE 18/10/2026</span>
+            <span class="stamp-code">VALIDÉ SIMULATEUR IA</span>
+          </div>
+        </div>
+
+        <div class="ticket-event-box">
+          <span class="event-category-kicker">Séminaire Stratégique &amp; Cohésion</span>
+          <h2 class="event-title">Séminaire d'Innovation &amp; Leadership Alpin 2026</h2>
+          <p class="event-tagline">Chamonix Mont-Blanc · Grand Resort &amp; Centre de Congrès</p>
+        </div>
+
+        <!-- 3 Pôles Clés : Transport, Hébergement, Pass -->
+        <div class="ticket-info-grid">
+          <div class="info-cell">
+            <span class="info-label">🚄 TRANSPORT ASSIGNÉ</span>
+            <strong class="info-val">TGV Lyria 1ère Classe</strong>
+            <small class="info-hint">Paris Gare de Lyon ➔ Bellegarde · Voiture 4, Siège 52</small>
+          </div>
+          <div class="info-cell">
+            <span class="info-label">🏨 HÉBERGEMENT ASSIGNÉ</span>
+            <strong class="info-val">Hôtel Mont-Blanc 4★</strong>
+            <small class="info-hint">Chambre Supérieure Vue Massif (Option calme)</small>
+          </div>
+          <div class="info-cell">
+            <span class="info-label">🎟️ N° DE DOSSIER</span>
+            <strong class="info-val mono-code">{{ ticketCodeSeminar }}</strong>
+            <small class="info-hint">Allocation Simulateur IA Validée</small>
+          </div>
+        </div>
+
+        <!-- Porteur du Billet (sans photo ni icône devant le nom) -->
+        <div class="attendee-card">
+          <div class="attendee-meta">
+            <span class="attendee-label">PARTICIPANT TITULAIRE</span>
+            <h3 class="attendee-name">{{ participantName }}</h3>
+            <span class="attendee-role">{{ participantRole }} · {{ participantOrg }}</span>
+          </div>
+          <div class="attendee-side-info">
+            <span class="side-ref">BILLET NOMINATIF &amp; PERSONNEL</span>
+            <small class="side-hash">RÉF : {{ ticketCodeSeminar }}</small>
+          </div>
+        </div>
+
+        <!-- Avantages & Services Inclus -->
+        <div class="ticket-perks">
+          <div class="perk-item">
+            <span class="perk-bullet">🎤</span>
+            <div>
+              <strong>Accès Plénières Sommet 2000</strong>
+              <small>Auditorium Mont-Blanc &amp; Ateliers</small>
+            </div>
+          </div>
+          <div class="perk-item">
+            <span class="perk-bullet">🚐</span>
+            <div>
+              <strong>Navette Privée Chamonix</strong>
+              <small>Transferts gares &amp; chalets inclus</small>
+            </div>
+          </div>
+          <div class="perk-item">
+            <span class="perk-bullet">🍽️</span>
+            <div>
+              <strong>Restauration Traiteur Gourmet</strong>
+              <small>Dîner de gala panoramique &amp; déjeuners</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Note légale -->
+        <div class="ticket-legal-note">
+          <span>Feuille de route officielle émise par EventTwin. Présentez ce pass lors de vos transferts et à l'accueil du congrès.</span>
+        </div>
+
+      </div>
+
+      <!-- Perforation verticale -->
+      <div class="ticket-perforation">
+        <div class="perf-cut top-cut"></div>
+        <div class="perf-dashed"></div>
+        <div class="perf-cut bottom-cut"></div>
+      </div>
+
+      <!-- Section Droite : Volet d'Émargement Séminaire -->
+      <div class="ticket-stub">
+        <div class="stub-heading">
+          <span class="stub-kicker">ÉMARGEMENT SÉJOUR</span>
+          <span class="stub-pass-no">PASS-CHX</span>
+        </div>
+
+        <div class="stub-qr-wrap">
+          <img [src]="qrUrlSeminar" alt="QR Code d'Émargement" class="stub-qr-img">
+          <span class="stub-qr-caption">Scannez ce QR Code à l'accueil (Hôtel &amp; Congrès)</span>
+        </div>
+
+        <div class="stub-security-box">
+          <div class="stub-barcode-lines"></div>
+          <span class="stub-sec-code">DOSSIER RÉF : ET-CHX-2026-VALIDE</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>

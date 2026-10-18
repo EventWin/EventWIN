@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django import forms
 from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 import string, random
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -9,11 +10,36 @@ from apps.organizations.models import Organization
 
 from .models import Participant, EventParticipant, ParticipantPreference, ParticipantConstraint, Organizer
 
+# Affichage du rôle de chaque utilisateur dans la table auth_user
+class CustomUserAdmin(BaseUserAdmin):
+    list_display = ('username', 'email', 'get_role', 'first_name', 'last_name', 'is_staff', 'is_active')
+    list_filter = ('is_staff', 'is_superuser', 'is_active')
+
+    def get_role(self, obj):
+        if obj.is_superuser:
+            return "👑 Administrateur"
+        if hasattr(obj, 'profile') and obj.profile:
+            r = obj.profile.role
+            if r == 'organizer':
+                return "🏢 Organisateur"
+            elif r == 'participant':
+                return "👤 Participant"
+            elif r == 'admin':
+                return "👑 Administrateur"
+        if obj.is_staff:
+            return "🏢 Organisateur"
+        return "👤 Participant"
+    get_role.short_description = "Rôle"
+
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
+
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
-    list_display = ('user', 'organization', 'status', 'created_at')
-    list_filter = ('status',)
-    search_fields = ('user__username', 'user__email')
+    list_display = ('user', 'role', 'phone', 'organization', 'status', 'created_at')
+    list_filter = ('role', 'status')
+    search_fields = ('user__username', 'user__email', 'phone')
+    fields = ('user', 'role', 'organization', 'phone', 'photo', 'status')
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(role='participant')

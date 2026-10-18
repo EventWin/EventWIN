@@ -37,7 +37,7 @@ import { RouterLink } from '@angular/router';
         <div class="strength"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div></div>
       <label class="check tiny muted" style="margin:12px 0 18px"><input type="checkbox"> J'accepte les conditions d'utilisation.</label>
       <button class="btn btn-ai btn-lg" routerLink="/app/optim">Créer mon espace</button>
-      <p class="alt">Déjà inscrit ? <a class="link" routerLink="/participant-login">Se connecter</a></p>
+      <p class="alt">Déjà inscrit ? <a class="link" routerLink="/login">Se connecter</a></p>
     </div>
   </div>
 </div>

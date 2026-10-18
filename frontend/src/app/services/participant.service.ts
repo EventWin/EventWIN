@@ -6,24 +6,24 @@ import { Observable, of } from 'rxjs';
   providedIn: 'root'
 })
 export class ParticipantService {
-  private apiUrl = '/api/participants/';
+  private apiUrl = 'http://localhost:8000/api/participants/';
 
   constructor(private http: HttpClient) {}
-
-  loginErrorMessage(err: any): string {
-    // Proxy returns 0/502/504 (or a non-JSON 500) when the Django API is not running
-    if (!err?.status || err.status >= 500) {
-      return 'Serveur API injoignable. Vérifiez que le backend tourne sur http://127.0.0.1:8000.';
-    }
-    return err?.error?.error || 'Identifiants incorrects.';
-  }
 
   login(email: string, password?: string): Observable<any> {
     return this.http.post(`${this.apiUrl}login/`, { email, password });
   }
 
-  register(fullName: string, email: string, password?: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}register/`, { full_name: fullName, email, password });
+  register(fullName: string, email: string, password?: string, otp?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}register/`, { full_name: fullName, email, password, otp });
+  }
+
+  sendOtp(email: string, fullName: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}send_otp/`, { email, full_name: fullName });
+  }
+
+  verifyOtp(email: string, otp: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}verify_otp/`, { email, otp });
   }
 
   createOrganizer(fullName: string, email: string): Observable<any> {
@@ -43,7 +43,7 @@ export class ParticipantService {
   }
 
   addPreference(participantId: string, type: string, value: string): Observable<any> {
-    return this.http.post('/api/participant-preferences/', {
+    return this.http.post('http://localhost:8000/api/participant-preferences/', {
       participant: participantId,
       preference_type: type,
       value: value,
@@ -52,7 +52,7 @@ export class ParticipantService {
   }
 
   addConstraint(participantId: string, type: string, value: string, isHard: boolean): Observable<any> {
-    return this.http.post('/api/participant-constraints/', {
+    return this.http.post('http://localhost:8000/api/participant-constraints/', {
       participant: participantId,
       constraint_type: type,
       value: value,
@@ -61,14 +61,22 @@ export class ParticipantService {
   }
 
   updatePreference(prefId: string, value: string): Observable<any> {
-    return this.http.patch(`/api/participant-preferences/${prefId}/`, {
+    return this.http.patch(`http://localhost:8000/api/participant-preferences/${prefId}/`, {
       value: value
     });
   }
 
   updateConstraint(constId: string, value: string): Observable<any> {
-    return this.http.patch(`/api/participant-constraints/${constId}/`, {
+    return this.http.patch(`http://localhost:8000/api/participant-constraints/${constId}/`, {
       value: value
     });
+  }
+
+  getOrganizations(): Observable<any> {
+    return this.http.get('http://localhost:8000/api/organizations/');
+  }
+
+  updateProfile(id: string, data: { first_name?: string; last_name?: string; full_name?: string; email?: string; phone?: string; organization?: string; photo?: string }): Observable<any> {
+    return this.http.patch(`${this.apiUrl}${id}/update_profile/`, data);
   }
 }

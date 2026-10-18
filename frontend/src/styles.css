@@ -453,3 +453,135 @@ body[data-role="admin"] .only-client{display:none!important}
 .ev-chip i{width:8px;height:8px;border-radius:2px;transform:rotate(45deg);background:var(--ai);flex:none}
 .ev-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:720px){.ev-chip{display:none}}
+
+/* ---------- Auth : design amélioré & contrôle de saisie ---------- */
+.auth-panel{background:radial-gradient(900px 500px at 80% 0%,rgba(124,92,255,.10),transparent 60%),
+radial-gradient(700px 420px at 0% 100%,rgba(34,211,238,.09),transparent 60%)}
+.auth-card{max-width:440px;background:var(--card);border:1px solid var(--line);border-radius:24px;
+padding:36px 34px;box-shadow:var(--sh),0 30px 60px -30px rgba(124,92,255,.35);animation:authIn .5s var(--ease) both}
+@keyframes authIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.auth-card h2{font-size:28px;background:var(--ai);-webkit-background-clip:text;background-clip:text;color:transparent;
+display:inline-block}
+.auth-card .btn-ai:disabled{opacity:.65;cursor:not-allowed;box-shadow:none}
+.auth-card .btn-ai:not(:disabled):hover{transform:translateY(-1px)}
+.in-wrap{position:relative}
+.in-wrap .in{padding-right:44px}
+.in-wrap .eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:34px;height:34px;
+display:flex;align-items:center;justify-content:center;border-radius:9px;color:var(--tx-3);transition:color .2s,background .2s}
+.in-wrap .eye:hover{color:var(--violet);background:var(--sub)}
+.in.invalid{border-color:var(--risk);background:rgba(232,69,95,.04)}
+.in.invalid:focus{box-shadow:0 0 0 4px rgba(232,69,95,.14)}
+.in.valid{border-color:var(--gain)}
+.in.valid:focus{box-shadow:0 0 0 4px rgba(15,169,125,.14)}
+.field-error{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:12.5px;font-weight:500;color:var(--risk);
+animation:errIn .2s ease both}
+.field-error::before{content:"!";display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
+border-radius:50%;background:var(--risk);color:#fff;font-size:10px;font-weight:700;flex:none}
+@keyframes errIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.form-alert{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;margin-bottom:16px;
+font-size:13px;font-weight:500;background:rgba(232,69,95,.09);color:var(--risk);border:1px solid rgba(232,69,95,.3)}
+.form-alert.info{background:rgba(124,92,255,.08);color:var(--violet);border-color:rgba(124,92,255,.3)}
+.strength i.s1{background:var(--risk)}.strength i.s2{background:var(--warn)}.strength i.s3,.strength i.s4{background:var(--gain)}
+.strength-label{font-size:12px;margin-top:6px;color:var(--tx-2)}
+.pw-rules{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12px;color:var(--tx-3)}
+.pw-rules span.ok{color:var(--gain);font-weight:500}
+.pw-rules span::before{content:"○ "}.pw-rules span.ok::before{content:"✓ "}
+
+/* ==========================================================
+STYLE D'IMPRESSION GLOBAL : EXPORT PDF DU BILLET SEULEMENT (A4)
+========================================================== */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm 12mm;
+  }
+  /* Cacher absolument TOUS les éléments hors billet : topbar, sidebar, menus, boutons */
+  app-sidebar,
+  app-topbar,
+  header.top,
+  .side,
+  .top,
+  .halo,
+  .no-print,
+  .pass-header,
+  .pass-selector-tabs,
+  .crumb,
+  .search,
+  .roles,
+  .ico-btn,
+  .me,
+  .menu,
+  .burger,
+  .toast,
+  .leaving,
+  footer {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  html, body {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+  .app {
+    display: block !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .main {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  .content {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .pass-wrapper {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+  .ticket-container {
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: stretch !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+  .printable-card {
+    box-shadow: none !important;
+    border: 2px solid #0F172A !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 165mm !important;
+    max-height: 178mm !important;
+    height: auto !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    transform: none !important;
+  }
+}
+

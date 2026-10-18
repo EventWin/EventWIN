@@ -2,106 +2,420 @@
   
   <!-- INTERFACE PRINCIPALE (Masquée si on est dans le Quiz) -->
   <div class="view">
-    <div class="card">
-      <div class="pro-head">
-        <div class="big-av">{{ getInitials(participant.full_name) }}</div>
-        <div style="flex:1;min-width:210px">
-          <h1 style="font-size:22px;font-weight:600">{{ participant.full_name }}</h1>
-          <p class="muted tiny">{{ participant.email }}</p>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <span class="chip ai">{{ participant.role === 'admin' ? 'Organisateur' : 'Participant' }}</span>
-            <span class="chip gain">Statut: {{ participant.status }}</span>
+    <div class="card" style="padding: 20px 24px;">
+      <div class="pro-head" style="display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;">
+        <!-- Identité à gauche -->
+        <input type="file" #headerPhotoInput (change)="onPhotoSelected($event)" accept="image/png, image/jpeg, image/webp" style="display:none;" />
+        <div style="display: flex; align-items: center; gap: 18px; min-width: 240px; transition: transform 0.2s ease;">
+          <div class="big-av-wrap" (click)="triggerPhotoUpload(headerPhotoInput)" title="Cliquer pour importer ou changer votre photo de profil">
+            <div class="big-av" [class.has-img]="!!profilePhoto">
+              <img *ngIf="profilePhoto" [src]="profilePhoto" alt="" class="big-av-img" />
+              <span *ngIf="!profilePhoto">{{ getInitials(participant.full_name) }}</span>
+            </div>
+            <div class="av-edit-badge" title="Importer une photo">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h1 style="font-size:22px;font-weight:600;margin:0;display:flex;align-items:center;gap:8px;">
+              {{ participant.full_name }}
+            </h1>
+            <p class="muted tiny" style="margin:2px 0 0 0;">{{ participant.email }}</p>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+              <span class="chip ai">{{ isOrganizer ? 'Organisateur' : 'Participant' }}</span>
+              <span class="chip gain">Statut: {{ participant.status }}</span>
+              <a *ngIf="!isOrganizer" routerLink="/app/my-pass" class="chip" style="background: linear-gradient(135deg, #7C5CFF, #2563EB); color: #fff; text-decoration: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                🎟️ Mes Pass &amp; Billets VIP
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profil & Score tout à droite (uniquement pour les participants, masqué pour l'organisateur) -->
+        <div *ngIf="!isOrganizer && getProfileType() as profileType" class="pcard" [class.pflash]="profileFlash"
+             style="background: var(--ai-soft); border: 2px solid var(--violet); border-radius: 14px; padding: 14px 20px; display: flex; gap: 16px; align-items: center; max-width: 580px; flex: 1; min-width: 320px; margin-left: auto;">
+          <div style="background: var(--violet); color: #fff; border-radius: 50%; width: 62px; height: 62px; display: flex; align-items: center; justify-content: center; font-size: 21px; font-weight: bold; flex-shrink: 0; box-shadow: 0 4px 14px rgba(124,92,255,0.4);">
+            {{ profileType.score }}
+          </div>
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <h2 style="font-size: 17px; font-weight: 700; color: var(--violet); margin: 0;">{{ profileType.name }}</h2>
+            </div>
+            <p style="color: var(--tx-2); font-size: 13px; line-height: 1.4; margin: 4px 0 0 0;">{{ profileType.desc }}</p>
+            <div class="pupdate" *ngIf="profileChange" style="margin-top: 6px;">
+              ✨ Profil mis à jour :
+              <ng-container *ngIf="profileChange.from !== profileChange.to"><s>{{ profileChange.from }}</s> → <b>{{ profileChange.to }}</b></ng-container>
+              <ng-container *ngIf="profileChange.fromScore !== profileChange.toScore"> · score <s>{{ profileChange.fromScore }}</s> → <b>{{ profileChange.toScore }} pts</b></ng-container>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="tabs mt-l" role="tablist">
-      <button role="tab" [attr.aria-selected]="activeTab === 't-id'" (click)="activeTab = 't-id'" [class.active]="activeTab === 't-id'">Identité</button>
-      <button role="tab" [attr.aria-selected]="activeTab === 't-pref'" (click)="activeTab = 't-pref'" [class.active]="activeTab === 't-pref'">Mes Préférences</button>
-      <button role="tab" [attr.aria-selected]="activeTab === 't-const'" (click)="activeTab = 't-const'" [class.active]="activeTab === 't-const'">Mes Contraintes</button>
-      <button role="tab" [attr.aria-selected]="activeTab === 't-sec'" (click)="activeTab = 't-sec'" [class.active]="activeTab === 't-sec'">Sécurité</button>
+    <!-- Navigation moderne des onglets (Masquée pour l'organisateur car les préférences et contraintes sont réservées aux participants) -->
+    <div class="tab-nav mt-l" role="tablist" *ngIf="!isOrganizer">
+      <button class="t-btn pref-btn" [class.active]="activeTab === 't-pref'" (click)="activeTab = 't-pref'" role="tab" [attr.aria-selected]="activeTab === 't-pref'">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>
+        </svg>
+        <span class="t-text">Mes Préférences</span>
+      </button>
+      <button class="t-btn const-btn" [class.active]="activeTab === 't-const'" (click)="activeTab = 't-const'" role="tab" [attr.aria-selected]="activeTab === 't-const'">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span class="t-text">Mes Contraintes</span>
+      </button>
     </div>
 
-    <!-- ONGLET IDENTITÉ -->
-    <div class="card tabpane" *ngIf="activeTab === 't-id'">
-      <div class="grid g2">
-        <div class="field"><label>Nom complet</label><input class="in" [value]="participant.full_name" readonly></div>
-        <div class="field"><label>E-mail</label><input class="in" [value]="participant.email" readonly></div>
-        <div class="field"><label>Téléphone</label><input class="in" placeholder="Non renseigné"></div>
-        <div class="field"><label>Organisation</label><input class="in" [value]="participant.organization?.name || 'Aucune'" readonly></div>
+    <!-- ONGLET IDENTITÉ (Toujours affiché pour l'organisateur ou si l'onglet identité est sélectionné) -->
+    <div class="card tabpane" *ngIf="isOrganizer || activeTab === 't-id'">
+      <div class="card-head">
+        <h3>{{ isOrganizer ? 'Mon Profil Organisateur' : 'Mon Profil & Informations Personnelles' }}</h3>
+        <p>{{ isOrganizer ? 'Vos coordonnées professionnelles et informations de connexion organisateur.' : 'Vos coordonnées, avatar et informations enregistrées. Vous pouvez cliquer sur un champ ou son icône crayon pour le modifier.' }}</p>
+      </div>
+
+      <div *ngIf="idSuccessMsg" class="photo-alert">
+        {{ idSuccessMsg }}
+      </div>
+
+      <!-- CARTE AVATAR (Masquée pour l'organisateur) -->
+      <div class="photo-card" *ngIf="!isOrganizer">
+        <div class="photo-left">
+          <div class="photo-preview-box">
+            <img *ngIf="profilePhoto" [src]="profilePhoto" alt="" class="photo-img-preview" />
+            <div *ngIf="!profilePhoto" class="photo-initials-preview">
+              {{ getInitials(participant.full_name) }}
+            </div>
+          </div>
+        </div>
+
+        <div class="photo-right">
+          <div class="photo-titles">
+            <h4>Avatar</h4>
+            <p>
+              Choisissez votre avatar illustré ci-dessous, ou conservez vos initiales (<b>{{ getInitials(participant.full_name) }}</b>). Pour importer une photo personnelle, cliquez directement sur votre avatar en haut.
+            </p>
+          </div>
+
+          <div *ngIf="photoSuccessMsg" class="photo-alert">
+            {{ photoSuccessMsg }}
+          </div>
+          <div *ngIf="photoErrorMsg" class="photo-error-alert">
+            {{ photoErrorMsg }}
+          </div>
+
+          <div class="photo-actions" *ngIf="profilePhoto">
+            <button class="btn-photo-action remove" (click)="removePhoto()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+              <span>Retirer l'avatar (garder initiales)</span>
+            </button>
+          </div>
+
+          <!-- Choix rapide d'avatars smiley raffinés -->
+          <div class="photo-presets">
+            <span class="preset-label">Avatars smiley raffinés (musique, rock, calme, festival...) :</span>
+            <div class="preset-list">
+              <button *ngFor="let preset of availableAvatarPresets" type="button" class="preset-btn" (click)="setPresetAvatar(preset.url)" [title]="preset.label">
+                <img [src]="preset.url" [alt]="preset.label" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRILLE DES CHAMPS D'IDENTITÉ MODIFIABLES (Prénom, Nom, E-mail, Téléphone, Organisation) -->
+      <div class="id-grid">
+        <!-- Prénom -->
+        <div class="id-card" [class.editing]="editingId['first_name']">
+          <div class="id-icon-box u-nom">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="id-content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="id-label">Prénom</span>
+              <button class="id-edit-toggle" *ngIf="!editingId['first_name']" (click)="startEditId('first_name')" title="Modifier le prénom">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                <span>Modifier</span>
+              </button>
+            </div>
+
+            <div *ngIf="!editingId['first_name']" (click)="startEditId('first_name')" style="cursor: pointer;" title="Cliquer pour modifier">
+              <div class="id-val">{{ idForm.first_name || 'Non renseigné' }}</div>
+            </div>
+
+            <div *ngIf="editingId['first_name']" class="id-edit-box">
+              <input type="text" class="in in-sm" [(ngModel)]="idForm.first_name" (ngModelChange)="onNameChange('first_name')" placeholder="Votre prénom (lettres uniquement)" (keydown.enter)="saveIdField('first_name')" />
+              <div *ngIf="firstNameErrorMsg" class="id-field-error">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ firstNameErrorMsg }}
+              </div>
+              <div class="id-edit-actions">
+                <button class="id-btn cancel" (click)="cancelEditId('first_name')">✕</button>
+                <button class="id-btn save" (click)="saveIdField('first_name')" title="Valider">✓</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nom de famille -->
+        <div class="id-card" [class.editing]="editingId['last_name']">
+          <div class="id-icon-box u-nom">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div class="id-content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="id-label">Nom</span>
+              <button class="id-edit-toggle" *ngIf="!editingId['last_name']" (click)="startEditId('last_name')" title="Modifier le nom">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                <span>Modifier</span>
+              </button>
+            </div>
+
+            <div *ngIf="!editingId['last_name']" (click)="startEditId('last_name')" style="cursor: pointer;" title="Cliquer pour modifier">
+              <div class="id-val">{{ idForm.last_name || 'Non renseigné' }}</div>
+            </div>
+
+            <div *ngIf="editingId['last_name']" class="id-edit-box">
+              <input type="text" class="in in-sm" [(ngModel)]="idForm.last_name" (ngModelChange)="onNameChange('last_name')" placeholder="Votre nom (lettres uniquement)" (keydown.enter)="saveIdField('last_name')" />
+              <div *ngIf="lastNameErrorMsg" class="id-field-error">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ lastNameErrorMsg }}
+              </div>
+              <div class="id-edit-actions">
+                <button class="id-btn cancel" (click)="cancelEditId('last_name')">✕</button>
+                <button class="id-btn save" (click)="saveIdField('last_name')" title="Valider">✓</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- E-mail -->
+        <div class="id-card" [class.editing]="editingId['email']">
+          <div class="id-icon-box u-mail">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+          </div>
+          <div class="id-content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="id-label">Adresse E-mail</span>
+              <button class="id-edit-toggle" *ngIf="!editingId['email']" (click)="startEditId('email')" title="Modifier l'email">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                <span>Modifier</span>
+              </button>
+            </div>
+
+            <div *ngIf="!editingId['email']" (click)="startEditId('email')" style="cursor: pointer;" title="Cliquer pour modifier">
+              <div class="id-val">{{ idForm.email || 'Non renseigné' }}</div>
+              <span class="id-badge verified">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                E-mail vérifié
+              </span>
+            </div>
+
+            <div *ngIf="editingId['email']" class="id-edit-box">
+              <input type="email" class="in in-sm" [(ngModel)]="idForm.email" placeholder="votre.email@exemple.com" (keydown.enter)="saveIdField('email')" />
+              <div *ngIf="emailErrorMsg" class="id-field-error">{{ emailErrorMsg }}</div>
+              <div class="id-edit-actions">
+                <button class="id-btn cancel" (click)="cancelEditId('email')">✕</button>
+                <button class="id-btn save" (click)="saveIdField('email')" title="Valider">✓</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Téléphone -->
+        <div class="id-card" [class.editing]="editingId['phone']">
+          <div class="id-icon-box u-tel">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+          </div>
+          <div class="id-content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="id-label">Téléphone</span>
+              <button class="id-edit-toggle" *ngIf="!editingId['phone']" (click)="startEditId('phone')" title="Modifier le téléphone">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                <span>Modifier</span>
+              </button>
+            </div>
+
+            <div *ngIf="!editingId['phone']" (click)="startEditId('phone')" style="cursor: pointer;" title="Cliquer pour modifier">
+              <div class="id-val">{{ idForm.phone || 'Non renseigné' }}</div>
+            </div>
+
+            <div *ngIf="editingId['phone']" class="id-edit-box">
+              <input type="tel" class="in in-sm" maxlength="17" [(ngModel)]="idForm.phone" (ngModelChange)="onPhoneChange()" placeholder="Ex: 06 12 34 56 78 ou +33 6 12 34 56 78" (keydown.enter)="saveIdField('phone')" />
+              <div *ngIf="phoneErrorMsg" class="id-field-error">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ phoneErrorMsg }}
+              </div>
+              <div class="id-edit-actions">
+                <button class="id-btn cancel" (click)="cancelEditId('phone')">✕</button>
+                <button class="id-btn save" (click)="saveIdField('phone')" title="Valider">✓</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Organisation (Masquée pour l'organisateur) -->
+        <div class="id-card" [class.editing]="editingId['organization']" *ngIf="!isOrganizer">
+          <div class="id-icon-box u-org">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+              <line x1="9" y1="22" x2="9" y2="2"/>
+              <line x1="8" y1="6" x2="8.01" y2="6"/>
+              <line x1="16" y1="6" x2="16.01" y2="6"/>
+              <line x1="12" y1="6" x2="12.01" y2="6"/>
+              <line x1="12" y1="10" x2="12.01" y2="10"/>
+              <line x1="12" y1="14" x2="12.01" y2="14"/>
+              <line x1="12" y1="18" x2="12.01" y2="18"/>
+            </svg>
+          </div>
+          <div class="id-content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="id-label">Organisation</span>
+              <button class="id-edit-toggle" *ngIf="!editingId['organization']" (click)="startEditId('organization')" title="Modifier l'organisation">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                <span>Modifier</span>
+              </button>
+            </div>
+
+            <div *ngIf="!editingId['organization']" (click)="startEditId('organization')" style="cursor: pointer;" title="Cliquer pour modifier">
+              <div class="id-val">{{ idForm.organization || 'Aucune' }}</div>
+            </div>
+
+            <div *ngIf="editingId['organization']" class="id-edit-box">
+              <select class="in in-sm" [(ngModel)]="idForm.organization" (keydown.enter)="saveIdField('organization')">
+                <option *ngFor="let org of availableOrganizations" [value]="org">{{ org }}</option>
+              </select>
+              <div class="id-edit-actions">
+                <button class="id-btn cancel" (click)="cancelEditId('organization')">✕</button>
+                <button class="id-btn save" (click)="saveIdField('organization')" title="Valider">✓</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zone discrète de suppression de profil avec SEULEMENT la petite icône poubelle -->
+      <div class="id-danger-zone-compact">
+        <span class="danger-compact-text">Sécurité du compte · Suppression définitive du profil</span>
+        <button class="btn-trash-mini" (click)="deleteAccount()" title="Supprimer définitivement le profil" aria-label="Supprimer le profil">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <!-- ONGLET PRÉFÉRENCES -->
-    <div class="card tabpane" *ngIf="activeTab === 't-pref'">
-      <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <h3>Vos Préférences</h3>
-          <p>Ce que vous attendez de l'événement.</p>
-        </div>
-        <a class="btn btn-sm btn-ai" href="/participant-onboarding">Modifier mon Quiz</a>
+    <!-- ONGLET PRÉFÉRENCES (Masqué pour l'organisateur) -->
+    <div class="card tabpane" *ngIf="!isOrganizer && activeTab === 't-pref'">
+      <div class="card-head">
+        <h3 style="color: #059669;">Vos Préférences</h3>
+        <p>Ce que vous attendez de l'événement (tous les critères du quiz modifiables directement).</p>
       </div>
 
-      <!-- CARTE TYPE DE PROFIL (Non modifiable) -->
-      <div *ngIf="getProfileType() as profileType" class="mt-l" style="background: var(--ai-soft); border: 2px solid var(--violet); border-radius: 12px; padding: 25px; display: flex; gap: 20px; align-items: center;">
-        <div style="background: var(--violet); color: #fff; border-radius: 50%; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; flex-shrink: 0;">
-          {{ profileType.score }}
-        </div>
-        <div>
-          <h2 style="font-size: 20px; font-weight: 700; color: var(--violet); margin-bottom: 5px;">{{ profileType.name }}</h2>
-          <p style="color: var(--tx-2); font-size: 15px; line-height: 1.5; margin: 0;">{{ profileType.desc }}</p>
-        </div>
-      </div>
-
-      <div *ngIf="getEditablePreferences().length === 0" class="muted tiny mt">Aucune préférence renseignée. Passez le quiz !</div>
+      <div *ngIf="getEditablePreferences().length === 0" class="muted tiny mt">Aucune préférence renseignée.</div>
       <div class="mt-l grid g1" style="gap:15px;">
-        <div class="card" *ngFor="let p of getEditablePreferences()" style="padding: 15px; border: 1px solid var(--line); box-shadow:none;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <b style="color:var(--violet);">{{ p.type }}</b>
-            <button class="btn btn-sm" *ngIf="!p.isEditing" (click)="p.isEditing = true">Modifier</button>
-            <button class="btn btn-sm btn-ai" *ngIf="p.isEditing" (click)="updatePreference(p)">Enregistrer</button>
-          </div>
-          <div class="mt-s">
-            <span *ngIf="!p.isEditing" style="font-size: 15px;">{{ p.value }}</span>
-            <input *ngIf="p.isEditing" type="text" class="in" [(ngModel)]="p.value" style="width:100%">
-          </div>
-        </div>
+        <ng-container *ngFor="let p of getEditablePreferences()">
+          <ng-container *ngTemplateOutlet="editCard; context: { $implicit: p, accent: '#10b981', kind: 'pref' }"></ng-container>
+        </ng-container>
       </div>
     </div>
 
-    <!-- ONGLET CONTRAINTES -->
-    <div class="card tabpane" *ngIf="activeTab === 't-const'">
-      <div class="card-head" style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <h3>Vos Contraintes</h3>
-          <p>Alimentation, mobilité, budget, etc.</p>
-        </div>
-        <a class="btn btn-sm btn-ai" href="/participant-onboarding">Repasser tout le Quiz</a>
+    <!-- ONGLET CONTRAINTES (Masqué pour l'organisateur) -->
+    <div class="card tabpane" *ngIf="!isOrganizer && activeTab === 't-const'">
+      <div class="card-head">
+        <h3>Vos Contraintes</h3>
+        <p>Alimentation, allergies, mobilité & accessibilité, transport, budget (modifiables directement ci-dessous).</p>
       </div>
-      <div *ngIf="savedConstraints.length === 0" class="muted tiny mt">Aucune contrainte stricte. Passez le quiz !</div>
+      <div *ngIf="savedConstraints.length === 0" class="muted tiny mt">Aucune contrainte renseignée.</div>
       <div class="mt-l grid g1" style="gap:15px;">
-        <div class="card" *ngFor="let c of savedConstraints" style="padding: 15px; border: 1px solid var(--line); box-shadow:none; border-left: 4px solid var(--danger);">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <b style="color:var(--danger);">{{ c.type }} <span *ngIf="c.isHard">🚨</span></b>
-            <button class="btn btn-sm" *ngIf="!c.isEditing" (click)="c.isEditing = true">Modifier</button>
-            <button class="btn btn-sm btn-ai" *ngIf="c.isEditing" (click)="updateConstraint(c)">Enregistrer</button>
-          </div>
-          <div class="mt-s">
-            <span *ngIf="!c.isEditing" style="font-size: 15px;">{{ c.value }}</span>
-            <input *ngIf="c.isEditing" type="text" class="in" [(ngModel)]="c.value" style="width:100%">
-          </div>
-        </div>
+        <ng-container *ngFor="let c of savedConstraints">
+          <ng-container *ngTemplateOutlet="editCard; context: { $implicit: c, accent: '#f43f5e', kind: 'const' }"></ng-container>
+        </ng-container>
       </div>
     </div>
 
-    <!-- ONGLET SÉCURITÉ -->
-    <div class="card tabpane" *ngIf="activeTab === 't-sec'">
-      <div class="setting">
-        <div>
-          <b>Supprimer le compte</b>
-          <small>Vos données seront effacées définitivement de l'événement.</small>
-        </div>
-        <button class="btn btn-sm btn-danger" (click)="deleteAccount()">Supprimer</button>
+<!-- CARTE ÉDITABLE (préférences & contraintes animées au survol) -->
+<ng-template #editCard let-item let-accent="accent" let-kind="kind">
+  <div class="ecard" [class.editing]="item.isEditing" [class.changed]="isChanged(item)" [class.saved]="item.justSaved"
+       [style.--accent]="accent">
+    <div class="ehead">
+      <b class="etitle">
+        <span class="eicon">{{ iconFor(item.type) }}</span>
+        <span>{{ item.type }}</span>
+        <span *ngIf="item.isHard" title="Contrainte stricte">🚨</span>
+      </b>
+
+      <span class="ebadge editing-b" *ngIf="item.isEditing && !isChanged(item)">✏️ En cours de modification</span>
+      <span class="ebadge changed-b" *ngIf="isChanged(item)">● Modifié</span>
+      <span class="ebadge saved-b" *ngIf="item.justSaved">✓ Enregistré</span>
+
+      <div class="eactions">
+        <button class="icon-btn" *ngIf="!item.isEditing" title="Modifier" aria-label="Modifier" (click)="startEdit(item)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+        <button class="icon-btn" *ngIf="item.isEditing" [disabled]="!isChanged(item)" title="Réinitialiser la valeur" aria-label="Réinitialiser" (click)="resetEdit(item)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
+        <button class="icon-btn" *ngIf="item.isEditing" title="Annuler" aria-label="Annuler" (click)="cancelEdit(item)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <button class="icon-btn ok" *ngIf="item.isEditing" title="Enregistrer" aria-label="Enregistrer" (click)="kind === 'pref' ? updatePreference(item) : updateConstraint(item)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
       </div>
-</div>
+    </div>
+
+    <!-- Question exacte posée pendant le Quiz (Audio 4) -->
+    <div class="equestion" *ngIf="questionFor(item.type)">
+      {{ questionFor(item.type) }}
+    </div>
+
+    <div class="ebody">
+      <div *ngIf="!item.isEditing" class="evalue-pill" (click)="startEdit(item)" style="cursor: pointer;" title="Cliquer pour modifier la réponse">
+        <span class="evalue-text">{{ item.value }}</span>
+        <span class="evalue-hint">✏️ Modifier</span>
+      </div>
+
+      <ng-container *ngIf="item.isEditing">
+        <ng-container *ngIf="isSlider(item.type); else notSlider">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <input type="range" min="0" max="10" class="slider" style="flex:1" [ngModel]="sliderValue(item)" (ngModelChange)="setSlider(item, $event)">
+            <b>{{ item.value }}</b>
+          </div>
+        </ng-container>
+        <ng-template #notSlider>
+          <select *ngIf="optionsFor(item) as opts; else freeText" class="in" style="width:100%" [(ngModel)]="item.value">
+            <option *ngFor="let o of opts" [value]="o">{{ o }}</option>
+          </select>
+          <ng-template #freeText>
+            <input type="text" class="in" style="width:100%" [(ngModel)]="item.value">
+          </ng-template>
+        </ng-template>
+
+        <div class="ediff" *ngIf="isChanged(item)">
+          <span class="old">{{ item.original }}</span> <span>→</span> <span class="new">{{ item.value }}</span>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+</ng-template>
+
