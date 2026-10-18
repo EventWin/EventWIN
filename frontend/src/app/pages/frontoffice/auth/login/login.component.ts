@@ -34,7 +34,7 @@ import { RouterLink } from '@angular/router';
       <button class="btn btn-ai btn-lg" routerLink="/app/optim">Ouvrir mon espace</button>
       <div class="sep">ou continuer avec</div>
       <div class="sso"><button class="btn">Google</button><button class="btn">Microsoft 365</button></div>
-      <p class="alt">Pas encore de compte ? <a class="link" routerLink="/participant-register">Créer un espace</a></p>
+      <p class="alt">Pas encore de compte ? <a class="link" routerLink="/register">Créer un espace</a></p>
     </div>
   </div>
 </div>

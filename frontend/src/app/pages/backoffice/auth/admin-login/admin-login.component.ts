@@ -15,6 +15,7 @@ export class AdminLoginComponent {
   email: string = '';
   password: string = '';
   errorMessage: string = '';
+  passwordVisible: boolean = false;
 
   constructor(
     private participantService: ParticipantService,
@@ -36,7 +37,7 @@ export class AdminLoginComponent {
         this.router.navigate(['/app/home']);
       },
       error: (err: any) => {
-        this.errorMessage = this.participantService.loginErrorMessage(err);
+        this.errorMessage = 'Identifiants incorrects.';
       }
     });
   }

@@ -1,82 +1,146 @@
 <div class="landing-container">
-  <!-- Navbar -->
+  <!-- Header / Navbar élégant avec logo agrandi -->
   <nav class="navbar">
-    <div class="logo-container">
-      <img src="assets/images/logo-eventtwin.png" alt="EventTwin Logo" class="nav-logo">
-      <span class="logo-text">Event<em>Twin</em></span>
+    <div class="logo-container" routerLink="/">
+      <img src="assets/images/logo-eventtwin.png" alt="EventTwin" class="nav-logo">
     </div>
     <div class="nav-links">
-      <a routerLink="/participant-login" class="nav-btn-round btn-nav-part">👤 Participant</a>
-      <a routerLink="/organizer-login" class="nav-btn-round btn-nav-org">⚙️ Organisateur</a>
+      <a routerLink="/participant-login" class="nav-btn-round btn-nav-part">
+        <span class="btn-ico">👤</span>
+        <span>Participant</span>
+      </a>
+      <a routerLink="/organizer-login" class="nav-btn-round btn-nav-org">
+        <span class="btn-ico">⚙️</span>
+        <span>Organisateur</span>
+      </a>
     </div>
   </nav>
 
-  <!-- Hero Section -->
-  <section class="hero-section">
-    <div class="hero-content">
-      <span class="badge">Propulsé par l'IA ✨</span>
-      <h1 class="title">Vos événements, <span>simulés et optimisés.</span></h1>
-      <p class="subtitle">
-        EventTwin révolutionne la gestion de séminaires. Créez des jumeaux numériques de vos événements, optimisez vos budgets avec l'IA et offrez une expérience sur-mesure à vos participants.
+  <!-- Hero principal sobre & épuré (conservé tel quel) -->
+  <main class="hero">
+    <div class="hero-left">
+      <div class="pill-label">Plateforme de Jumeaux Numériques</div>
+
+      <h1 class="hero-heading">
+        Le jumeau numérique <br>
+        <span class="gradient-text">de vos événements.</span>
+      </h1>
+
+      <p class="hero-subtext">
+        Modélisez, simulez et orchestrez vos séminaires d'entreprise avec précision et sérénité.
       </p>
-    </div>
-    
-    <div class="hero-image">
-      <div class="glass-panel">
-        <img src="assets/images/mascot.gif" alt="Mascotte EventTwin" class="mascot-img">
-        <div class="floating-badge fb-1">💡 Optimisation IA Active</div>
-        <div class="floating-badge fb-2">🏨 300 Chambres Assignées</div>
+
+      <!-- Points explicatifs -->
+      <div class="hero-keypoints">
+        <div class="keypoint-item">
+          <span class="keypoint-icon">⚙️</span>
+          <div class="keypoint-text">
+            <h4>Espace Organisateur</h4>
+            <p>Pilotage centralisé du jumeau numérique, calcul de scénarios et simulations IA optimisées.</p>
+          </div>
+        </div>
+
+        <div class="keypoint-item">
+          <span class="keypoint-icon">👤</span>
+          <div class="keypoint-text">
+            <h4>Espace Participant</h4>
+            <p>Expression individualisée des préférences de voyage, de transport et des contraintes spécifiques.</p>
+          </div>
+        </div>
       </div>
+    </div>
+
+    <!-- Visuel classe, sobre, sans badge ni texte parasite -->
+    <div class="hero-right">
+      <div class="twin-frame">
+        <div class="frame-top">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="frame-label">Jumeau Numérique Événement</span>
+        </div>
+
+        <!-- Schéma architectural sobre & élégant des pôles de l'événement -->
+        <div class="nodes-grid">
+          <div class="node-box">
+            <span class="node-ico">🏨</span>
+            <span class="node-name">Hébergement</span>
+          </div>
+
+          <div class="node-box">
+            <span class="node-ico">🚄</span>
+            <span class="node-name">Transport</span>
+          </div>
+
+          <div class="node-box">
+            <span class="node-ico">🍽️</span>
+            <span class="node-name">Restauration</span>
+          </div>
+
+          <div class="node-box">
+            <span class="node-ico">🎤</span>
+            <span class="node-name">Conférences</span>
+          </div>
+        </div>
+
+        <div class="frame-footer">
+          <div class="sync-indicator">
+            <span class="pulse-emerald"></span>
+            <span>Simulation synchronisée</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 3 piliers simples et concis -->
+  <section class="features">
+    <div class="feature-item">
+      <div class="feature-ico">🌐</div>
+      <h4>Modélisation</h4>
+      <p>Visualisation globale du lieu, des espaces et des plannings.</p>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-ico">✨</div>
+      <h4>Intelligence Logistique</h4>
+      <p>Équilibre optimal entre budget, temps et capacités.</p>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-ico">🎯</div>
+      <h4>Sur-Mesure</h4>
+      <p>Prise en compte des attentes de chaque invité.</p>
     </div>
   </section>
 
-  <!-- Features Section -->
-  <section id="features" class="features-section">
-    <h2>Pourquoi choisir EventTwin ?</h2>
-    <div class="features-grid">
-      <div class="feature">
-        <div class="icon">🤖</div>
-        <h3>Simulations Intelligentes</h3>
-        <p>Générez plusieurs scénarios d'événements et laissez l'IA trouver la meilleure répartition logistique.</p>
-      </div>
-      <div class="feature">
-        <div class="icon">💰</div>
-        <h3>Maitrise du Budget</h3>
-        <p>Suivez vos dépenses en temps réel. Notre algorithme vous alerte avant tout dépassement.</p>
-      </div>
-      <div class="feature">
-        <div class="icon">👤</div>
-        <h3>Expérience Participant</h3>
-        <p>Recueillez les contraintes alimentaires et logistiques de vos invités de manière fluide.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Footer avec Contacts pour Organisateur -->
+  <!-- Footer sobre, élégant et soigné -->
   <footer id="contact" class="site-footer">
+    <div class="footer-top-accent"></div>
     <div class="footer-content">
       <div class="footer-text">
         <h3>Envie de rejoindre la plateforme ?</h3>
         <p>L'accès Organisateur est privé. Contactez l'administrateur de la plateforme pour obtenir vos accès.</p>
       </div>
-      
-      <div class="footer-socials">
-        <!-- LinkedIn -->
-        <a href="https://linkedin.com/" target="_blank" class="social-icon">
-          <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" alt="LinkedIn">
-        </a>
-        <!-- WhatsApp -->
-        <a href="https://wa.me/33600000000" target="_blank" class="social-icon">
-          <img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" alt="WhatsApp">
-        </a>
-        <!-- Email -->
-        <a href="mailto:admin@eventtwin.com" class="social-icon">
-          <img src="https://cdn-icons-png.flaticon.com/512/732/732200.png" alt="Email">
+      <div class="footer-mail-wrap">
+        <a href="mailto:admin@eventtwin.com?subject=Demande%20d%27acc%C3%A8s%20Organisateur%20-%20EventTwin" class="mail-round-btn" title="Contacter l'administrateur par email" aria-label="Contacter l'administrateur par email">
+          <svg class="mail-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="20" height="16" x="2" y="4" rx="2"/>
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+          </svg>
         </a>
       </div>
     </div>
+
     <div class="footer-bottom">
-      <p>© 2026 EventTwin. Tous droits réservés.</p>
+      <div class="footer-copy">© 2026 EventTwin · Tous droits réservés.</div>
+      <div class="footer-links">
+        <a routerLink="/organizer-login">Organisateur</a>
+        <span class="footer-sep">·</span>
+        <a routerLink="/participant-login">Participant</a>
+        <span class="footer-sep">·</span>
+        <a routerLink="/forgot">Assistance</a>
+      </div>
     </div>
   </footer>
 </div>

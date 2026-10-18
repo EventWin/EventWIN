@@ -14,7 +14,7 @@ def get_acting_participant(request):
     try:
         return (
             Participant.objects
-            .select_related('user', 'organization')
+            .select_related('organization')
             .filter(pk=raw)
             .first()
         )
