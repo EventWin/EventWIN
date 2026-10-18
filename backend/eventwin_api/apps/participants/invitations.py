@@ -147,7 +147,26 @@ def accept_invitation(raw_token: str, password: str):
         return None, 'Le mot de passe doit contenir au moins 8 caractères.'
     validate_password(password, user=invitation.user)
 
+    # Le compte est normalement pré-créé (statut « invited ). Si l'invitation
+    # n'a pas encore de user lié, on le materialise ici — jamais de compte
+    # fantôme, le jeton reste la seule preuve.
     user = invitation.user
+    if user is None:
+        user = User.objects.create_user(
+            username=invitation.email, email=invitation.email, password=None
+        )
+        user.set_unusable_password()
+        user.save()
+        Participant.objects.get_or_create(
+            user=user,
+            defaults={
+                'organization': invitation.organization,
+                'role': 'organizer',
+                'status': 'invited',
+            },
+        )
+        invitation.user = user
+        invitation.save(update_fields=['user'])
     user.set_password(password)
     user.save()
     profile = Participant.objects.filter(user=user).first()

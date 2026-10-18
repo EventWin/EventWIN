@@ -2,10 +2,13 @@ from rest_framework import serializers
 
 from .models import (
     EventParticipant,
+    EventQuiz,
     OrganizerInvitation,
     Participant,
     ParticipantConstraint,
     ParticipantPreference,
+    QuizAnswer,
+    QuizQuestion,
 )
 
 
@@ -84,3 +87,40 @@ class OrganizerInvitationSerializer(serializers.ModelSerializer):
 
     def get_organizer_name(self, obj):
         return obj.user.username if obj.user else ''
+
+
+# --- Quiz --------------------------------------------------------------------
+
+
+class QuizQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuizQuestion
+        fields = ['id', 'prompt', 'kind', 'options', 'is_required', 'position']
+        read_only_fields = ['id']
+
+
+class EventQuizSerializer(serializers.ModelSerializer):
+    """Quiz d'un événement, avec ses questions triées."""
+
+    questions = QuizQuestionSerializer(many=True, read_only=True)
+    event_name = serializers.CharField(source='event.name', read_only=True)
+
+    class Meta:
+        model = EventQuiz
+        fields = ['id', 'event', 'event_name', 'title', 'description',
+                  'is_active', 'questions', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class QuizAnswerSerializer(serializers.ModelSerializer):
+    """Réponse : ``value=null`` signifie « non répondu », jamais « aucune »."""
+
+    question_kind = serializers.CharField(source='question.kind', read_only=True)
+    question_prompt = serializers.CharField(source='question.prompt', read_only=True)
+    is_answered = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = QuizAnswer
+        fields = ['id', 'registration', 'question', 'question_kind',
+                  'question_prompt', 'value', 'is_answered', 'created_at']
+        read_only_fields = ['id', 'created_at', 'is_answered']
