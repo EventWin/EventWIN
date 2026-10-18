@@ -256,8 +256,10 @@ def test_lost_deals_are_ignored(event_a, org_a):
 
 def test_full_happy_path_logs_each_step(event_a, org_a, organizer_a):
     deal = make_deal(event_a, make_sponsor(org_a), 'lead', '10000')
+    import time
     for status in ('contacted', 'proposal_sent', 'negotiating', 'signed', 'paid'):
         services.transition_deal(deal, status, actor=organizer_a)
+        time.sleep(0.01)
     deal.refresh_from_db()
     assert deal.status == 'paid'
     assert deal.probability_percent == 100

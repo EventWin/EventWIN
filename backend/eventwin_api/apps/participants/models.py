@@ -1,158 +1,187 @@
+import uuid
 from django.db import models
+from django.contrib.auth.models import AbstractUser, UserManager
 from apps.base_models import UUIDTimestampedModel
-from django.contrib.auth.models import User
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 
 
 class UserRole(models.TextChoices):
     """
-    Énumération stricte des rôles applicatifs pour tous les types d'utilisateurs.
+    Énumération stricte des rôles applicatifs.
     """
     ADMIN = 'admin', 'Administrateur'
     ORGANIZER = 'organizer', 'Organisateur'
     PARTICIPANT = 'participant', 'Participant'
 
 
-class BaseUserProfile(UUIDTimestampedModel):
+class User(AbstractUser):
     """
-    Modèle de base abstrait regroupant tous les attributs communs 
-    aux 3 types d'utilisateurs (Admin, Organisateur, Participant).
+    TABLE PRINCIPALE COMMUNE (GÉNÉRALISATION UML)
+    Regroupe TOUS les attributs communs aux 3 types d'utilisateurs.
     """
-    user = models.OneToOneField(
-        User, 
-        on_delete=models.CASCADE, 
-        related_name='profile', 
-        null=True
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    role = models.CharField(
+        max_length=20,
+        choices=UserRole.choices,
+        default=UserRole.PARTICIPANT,
+        verbose_name="Rôle applicatif"
+    )
+    phone = models.CharField(
+        max_length=50, 
+        blank=True, 
+        default='', 
+        verbose_name="Numéro de téléphone"
+    )
+    photo = models.TextField(
+        blank=True, 
+        default='', 
+        verbose_name="Photo de profil / Avatar"
+    )
+    status = models.CharField(
+        max_length=50, 
+        default='active', 
+        verbose_name="Statut du compte"
     )
     organization = models.ForeignKey(
         'organizations.Organization',
-        on_delete=models.CASCADE,
-        related_name='participants',
-        null=True, 
-        blank=True
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users',
+        verbose_name="Organisation / Entreprise"
     )
-    role = models.CharField(
-        max_length=50, 
-        choices=UserRole.choices, 
-        default=UserRole.PARTICIPANT,
-        verbose_name="Rôle utilisateur"
-    )
-    status = models.CharField(max_length=50, default='active', verbose_name="Statut du compte")
-    phone = models.CharField(max_length=50, blank=True, default='', verbose_name="Numéro de téléphone")
-    photo = models.TextField(blank=True, default='', verbose_name="Photo de profil / Avatar")
+
+    objects = UserManager()
 
     class Meta:
-        abstract = True
+        verbose_name = 'Utilisateur'
+        verbose_name_plural = 'Utilisateurs'
 
     def __str__(self):
-        return self.user.username if self.user else str(self.id)
-
-    def delete(self, *args, **kwargs):
-        user_to_delete = self.user
-        super().delete(*args, **kwargs)
-        if user_to_delete:
-            user_to_delete.delete()
+        return f"{self.username} ({self.get_role_display()})"
 
     @property
-    def is_admin(self):
-        return self.role == UserRole.ADMIN
+    def is_admin_role(self):
+        return self.role == UserRole.ADMIN or self.is_superuser
 
     @property
-    def is_organizer(self):
-        return self.role == UserRole.ORGANIZER
+    def is_organizer_role(self):
+        return self.role == UserRole.ORGANIZER or self.is_staff
 
     @property
-    def is_participant(self):
+    def is_participant_role(self):
         return self.role == UserRole.PARTICIPANT
 
     @property
-    def email(self):
-        return self.user.email if self.user else ''
+    def full_name(self):
+        full = f"{self.first_name} {self.last_name}".strip()
+        return full if full else self.username
 
     @property
-    def full_name(self):
-        if not self.user:
-            return 'Inconnu'
-        full = f"{self.user.first_name} {self.user.last_name}".strip()
-        return full if full else self.user.username
+    def user(self):
+        """Rétrocompatibilité : renvoie self."""
+        return self
+
+    @property
+    def profile(self):
+        """Rétrocompatibilité : renvoie le profil participant ou self."""
+        return getattr(self, 'participant', self)
 
 
-class Participant(BaseUserProfile):
+class Participant(User):
     """
-    Table concrète représentant le profil utilisateur dans le système,
-    enrichie des relations spécifiques au participant (pass, préférences, contraintes, présences).
+    SOUS-CLASSE PARTICIPANT (SPÉCIALISATION UML PAR HÉRITAGE)
+    Hérite directement de tous les attributs de la table User.
+    Contient les données spécifiques aux participants (badge, contraintes, préférences).
     """
+    badge_code = models.CharField(
+        max_length=100, 
+        blank=True, 
+        default='', 
+        verbose_name="Code badge / QR"
+    )
+
     class Meta:
         verbose_name = 'Participant'
         verbose_name_plural = 'Participants'
 
-
-# Alias pour requêter la table commune des utilisateurs indifféremment de leur rôle
-UserProfile = Participant
-
-
-class OrganizerManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(role=UserRole.ORGANIZER)
+    def save(self, *args, **kwargs):
+        if not self.role:
+            self.role = UserRole.PARTICIPANT
+        super().save(*args, **kwargs)
 
 
-class Organizer(Participant):
+class Organizer(User):
     """
-    Modèle spécialisé pour les Organisateurs.
-    Garantit l'attribution du rôle ORGANIZER et dispose de son propre manager.
+    SOUS-CLASSE ORGANISATEUR (SPÉCIALISATION UML PAR HÉRITAGE)
+    Hérite directement de User avec rôle Organisateur et accès staff.
     """
-    objects = OrganizerManager()
-    all_objects = models.Manager()
+    license_type = models.CharField(
+        max_length=50, 
+        blank=True, 
+        default='standard', 
+        verbose_name="Licence organisateur"
+    )
 
     class Meta:
-        proxy = True
         verbose_name = 'Organisateur'
         verbose_name_plural = 'Organisateurs'
 
     def save(self, *args, **kwargs):
-        self.role = UserRole.ORGANIZER
+        if not self.role or self.role == UserRole.PARTICIPANT:
+            self.role = UserRole.ORGANIZER
+        self.is_staff = True
         super().save(*args, **kwargs)
 
 
-class AdminProfileManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(role=UserRole.ADMIN)
-
-
-class AdminProfile(Participant):
+class AdminUser(User):
     """
-    Modèle spécialisé pour les Administrateurs.
-    Garantit l'attribution du rôle ADMIN et dispose de son propre manager.
+    SOUS-CLASSE ADMINISTRATEUR (SPÉCIALISATION UML PAR HÉRITAGE)
+    Hérite directement de User avec tous les privilèges superuser.
     """
-    objects = AdminProfileManager()
-    all_objects = models.Manager()
-
     class Meta:
-        proxy = True
         verbose_name = 'Administrateur'
         verbose_name_plural = 'Administrateurs'
 
     def save(self, *args, **kwargs):
-        self.role = UserRole.ADMIN
+        if not self.role or self.role == UserRole.PARTICIPANT:
+            self.role = UserRole.ADMIN
+        self.is_staff = True
+        self.is_superuser = True
         super().save(*args, **kwargs)
+
+
+# Alias pour rétrocompatibilité
+UserProfile = User
+AdminProfile = AdminUser
 
 
 class EventParticipant(UUIDTimestampedModel):
     """
-    Liaison entre un Événement et un Participant (inscription, émargement, satisfaction).
+    Liaison d'un participant avec un événement.
     """
-    event = models.ForeignKey('events.Event', on_delete=models.CASCADE, related_name='event_participants')
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='event_participations')
+    event = models.ForeignKey(
+        'events.Event', 
+        on_delete=models.CASCADE, 
+        related_name='event_participants'
+    )
+    participant = models.ForeignKey(
+        Participant, 
+        on_delete=models.CASCADE, 
+        related_name='event_participations'
+    )
     attendance_status = models.CharField(max_length=50, blank=True)
     satisfaction_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
 
 class ParticipantPreference(UUIDTimestampedModel):
     """
-    Préférences spécifiques au participant (restauration, calme, transport, etc.).
+    Préférences spécifiques au participant (repas, calme, transport, etc.).
     """
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='preferences')
+    participant = models.ForeignKey(
+        Participant, 
+        on_delete=models.CASCADE, 
+        related_name='preferences'
+    )
     preference_type = models.CharField(max_length=100)
     value = models.CharField(max_length=255)
     weight = models.IntegerField(default=1)
@@ -160,35 +189,13 @@ class ParticipantPreference(UUIDTimestampedModel):
 
 class ParticipantConstraint(UUIDTimestampedModel):
     """
-    Contraintes logistiques fortes ou faibles du participant (PMR, allergies, dates).
+    Contraintes spécifiques au participant (PMR, allergies, dates).
     """
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='constraints')
+    participant = models.ForeignKey(
+        Participant, 
+        on_delete=models.CASCADE, 
+        related_name='constraints'
+    )
     constraint_type = models.CharField(max_length=100)
     value = models.CharField(max_length=255)
     is_hard_constraint = models.BooleanField(default=False)
-
-
-@receiver(post_save, sender=User)
-def sync_user_participant_profile(sender, instance, created, **kwargs):
-    """
-    Synchronise automatiquement le profil utilisateur avec son rôle selon les droits Django.
-    """
-    role = UserRole.PARTICIPANT
-    if instance.is_superuser:
-        role = UserRole.ADMIN
-    elif instance.is_staff:
-        role = UserRole.ORGANIZER
-        
-    try:
-        from apps.organizations.models import Organization
-        org = Organization.objects.first()
-    except Exception:
-        org = None
-
-    p, _ = Participant.objects.get_or_create(
-        user=instance, 
-        defaults={'role': role, 'status': 'active', 'organization': org}
-    )
-    if p.role != role and (instance.is_superuser or instance.is_staff):
-        p.role = role
-        p.save()

@@ -8,15 +8,111 @@ django.setup()
 
 from apps.organizations.models import Organization
 from apps.events.models import Event, EventScheduleItem, Resource
-from apps.participants.models import Participant, EventParticipant
+from apps.participants.models import (
+    User,
+    UserRole,
+    Participant,
+    Organizer,
+    AdminUser,
+    EventParticipant,
+    ParticipantPreference,
+    ParticipantConstraint
+)
 from apps.simulation.models import Scenario, ScenarioResult
 
-org = Organization.objects.first()
+# 1. Organisation principale
+org, _ = Organization.objects.get_or_create(
+    name='TechCorp Global',
+    defaults={'legal_name': 'TechCorp Global SAS'}
+)
 
-# Supprimer anciens events de test si existants
+# 2. Utilisateurs démo avec rôles et hiérarchie d'héritage
+# Compte Administrateur
+if not User.objects.filter(email='admin@eventtwin.com').exists():
+    admin_u = AdminUser.objects.create_superuser(
+        username='admin',
+        email='admin@eventtwin.com',
+        password='Pass1234!',
+        first_name='Admin',
+        last_name='EventTwin',
+        phone='+33 1 40 00 00 00',
+        organization=org,
+        role=UserRole.ADMIN,
+        status='active'
+    )
+    print("Created Admin:", admin_u.email)
+else:
+    admin_u = User.objects.get(email='admin@eventtwin.com')
+    admin_u.set_password('Pass1234!')
+    admin_u.save()
+
+# Compte Organisateur (Sous-classe Organizer)
+if not User.objects.filter(email='orga@test.com').exists():
+    orga_u = Organizer.objects.create_user(
+        username='organisateur',
+        email='orga@test.com',
+        password='Pass1234!',
+        first_name='Organisateur',
+        last_name='Partenaire',
+        phone='+33 6 98 76 54 32',
+        organization=org,
+        license_type='premium',
+        role=UserRole.ORGANIZER,
+        is_staff=True,
+        status='active'
+    )
+    print("Created Organizer:", orga_u.email)
+else:
+    orga_u = User.objects.get(email='orga@test.com')
+    orga_u.set_password('Pass1234!')
+    orga_u.save()
+
+# Compte Participant (Sous-classe Participant)
+if not Participant.objects.filter(email='ons@gmail.com').exists():
+    part_u = Participant.objects.create_user(
+        username='ons.bouazizi',
+        email='ons@gmail.com',
+        password='Pass1234!',
+        first_name='Ons',
+        last_name='Bouazizi',
+        phone='+33 6 12 34 56 78',
+        organization=org,
+        badge_code='BADGE-ONS-2026',
+        role=UserRole.PARTICIPANT,
+        status='active'
+    )
+    print("Created Participant:", part_u.email)
+else:
+    part_u = Participant.objects.get(email='ons@gmail.com')
+    part_u.set_password('Pass1234!')
+    part_u.save()
+
+# Préférences et contraintes du participant
+ParticipantPreference.objects.get_or_create(
+    participant=part_u,
+    preference_type='room_preference',
+    defaults={'value': 'Chambre individuelle au calme', 'weight': 2}
+)
+ParticipantPreference.objects.get_or_create(
+    participant=part_u,
+    preference_type='diet',
+    defaults={'value': 'Végétarien', 'weight': 3}
+)
+ParticipantPreference.objects.get_or_create(
+    participant=part_u,
+    preference_type='transport_mode',
+    defaults={'value': 'Train TGV 1ère classe', 'weight': 2}
+)
+
+ParticipantConstraint.objects.get_or_create(
+    participant=part_u,
+    constraint_type='allergies',
+    defaults={'value': 'Arachides et fruits à coque', 'is_hard_constraint': True}
+)
+
+# 3. Événement 1 : NeonWaves Festival
 Event.objects.all().delete()
 
-# 1. Événement Musical / Festival
 ev_festival = Event.objects.create(
     organization=org,
     name='NeonWaves Music and Digital Festival 2026',
@@ -70,7 +166,7 @@ Resource.objects.create(
     unit_cost=Decimal('45.00')
 )
 
-# 2. Séminaire et Voyage d'Affaires Optimisé par Simulateur
+# 4. Événement 2 : Séminaire Chamonix
 ev_seminar = Event.objects.create(
     organization=org,
     name="Seminaire d'Innovation et Leadership Alpin 2026",
@@ -141,7 +237,6 @@ Resource.objects.create(
     unit_cost=Decimal('95.00')
 )
 
-# Simulation du séminaire
 sc = Scenario.objects.create(
     event=ev_seminar,
     name='Scenario Optimal IA - Confort et Empreinte Bas Carbone',
@@ -156,9 +251,17 @@ ScenarioResult.objects.create(
     notes="Satisfaction maximisee a 98.5% avec -38% d'emissions CO2."
 )
 
-# Inscrire tous les participants existants aux 2 événements
+# Inscription des participants aux 2 événements
 for p in Participant.objects.all():
-    EventParticipant.objects.get_or_create(event=ev_festival, participant=p, defaults={'attendance_status': 'confirmed', 'satisfaction_score': Decimal('97.5')})
-    EventParticipant.objects.get_or_create(event=ev_seminar, participant=p, defaults={'attendance_status': 'confirmed', 'satisfaction_score': Decimal('99.0')})
+    EventParticipant.objects.get_or_create(
+        event=ev_festival, 
+        participant=p, 
+        defaults={'attendance_status': 'confirmed', 'satisfaction_score': Decimal('97.5')}
+    )
+    EventParticipant.objects.get_or_create(
+        event=ev_seminar, 
+        participant=p, 
+        defaults={'attendance_status': 'confirmed', 'satisfaction_score': Decimal('99.0')}
+    )
 
-print('Successfully created 2 events and linked all participants!')
+print('Successfully populated database with users, inheritance models, events and participations!')

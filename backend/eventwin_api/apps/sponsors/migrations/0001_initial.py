@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('events', '0004_remove_event_budget_accommodation_and_more'),
         ('organizations', '0001_initial'),
-        ('participants', '0002_organizer'),
+        ('participants', '0001_initial'),
     ]
 
     operations = [

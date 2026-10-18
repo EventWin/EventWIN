@@ -1,10 +1,12 @@
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.events.models import Event
 from apps.organizations.models import Organization
-from apps.participants.models import Participant
+from apps.participants.models import Participant, UserRole
+
+User = get_user_model()
 
 
 @pytest.fixture
@@ -18,25 +20,16 @@ def org_b(db):
 
 
 def _participant(username, email, role, organization=None, is_superuser=False):
-    user = User.objects.create_user(
+    p = Participant.objects.create_user(
         username=username,
         email=email,
         password='pass1234',
         is_superuser=is_superuser,
+        is_staff=(role in [UserRole.ORGANIZER, UserRole.ADMIN] or is_superuser),
+        role=role,
+        organization=organization,
+        status='active'
     )
-    p, created = Participant.objects.get_or_create(
-        user=user,
-        defaults={
-            'organization': organization,
-            'role': role,
-            'status': 'active',
-        }
-    )
-    if not created:
-        p.organization = organization
-        p.role = role
-        p.status = 'active'
-        p.save()
     return p
 
 

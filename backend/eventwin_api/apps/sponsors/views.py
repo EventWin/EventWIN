@@ -60,7 +60,7 @@ class SponsorViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelVi
     event_lookup = 'deals__event'
     queryset = (
         Sponsor.objects
-        .select_related('organization', 'created_by', 'created_by__user')
+        .select_related('organization', 'created_by')
         .all()
         .order_by('name')
     )
@@ -196,7 +196,6 @@ class SponsorshipDealViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets
             'event__organization',
             'sponsor',
             'owner',
-            'owner__user',
             'package',
         )
         .prefetch_related('deliverables', 'payments')
@@ -263,7 +262,7 @@ class SponsorshipDealViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets
         if not is_admin(actor) and deal.owner_id not in (None, actor.id):
             return Response({'detail': 'Seul le responsable actuel ou un admin peut réassigner ce dossier.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            new_owner = Participant.objects.filter(pk=request.data.get('owner')).select_related('user').first()
+            new_owner = Participant.objects.filter(pk=request.data.get('owner')).first()
         except (ValueError, TypeError, Exception):  # identifiant invalide
             new_owner = None
         if new_owner is None or not is_organizer_or_admin(new_owner):
@@ -321,7 +320,7 @@ class SponsorshipActivityViewSet(OrganizationScopedMixin, EventFilterMixin, view
     http_method_names = ['get', 'post', 'head', 'options']
     queryset = (
         SponsorshipActivity.objects
-        .select_related("deal", "deal__event", "actor", "actor__user")
+        .select_related("deal", "deal__event", "actor")
         .all()
         .order_by('-created_at')
     )
