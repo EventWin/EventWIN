@@ -18,7 +18,7 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 
@@ -121,13 +121,19 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             'confirm_password_reset',
         ):
             return [AllowAny()]
+        # La création directe d'un compte (hors inscription publique
+        # ``register``) est réservée au super-administrateur : le rôle ne peut
+        # donc jamais être choisi par un client.
         if self.action in (
             'invite_organizer', 'resend_invitation', 'revoke_invitation',
-            'list_invitations', 'get_organizers',
+            'list_invitations', 'get_organizers', 'create',
         ):
             return [IsSuperAdmin()]
-        if self.action == 'retrieve':
-            return [IsSelfOrManager()]
+        # Lecture/écriture/suppression d'un profil : soi-même (participant) ou
+        # un manager de son périmètre (organisateur/admin). Le rôle restant en
+        # lecture seule, aucune élévation n'est possible.
+        if self.action in ('retrieve', 'update', 'partial_update', 'destroy'):
+            return [IsAuthenticated(), IsSelfOrManager()]
         return super().get_permissions()
 
     def get_queryset(self):

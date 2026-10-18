@@ -174,6 +174,33 @@ class RoleSecurityTests(TestCase):
         response = self.api.get('/api/participants/get_organizers/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_participant_cannot_self_promote_via_patch(self):
+        """Le rôle est en lecture seule : aucun PATCH ne peut l'élever."""
+        self._as(self.part)
+        self.api.patch(
+            f'/api/participants/{self.part_profile.id}/',
+            {'role': 'organizer', 'status': 'active'},
+            format='json',
+        )
+        self.part_profile.refresh_from_db()
+        self.assertEqual(self.part_profile.role, 'participant')
+        self.assertFalse(self.part_profile.is_organizer)
+
+    def test_participant_cannot_create_privileged_account(self):
+        """La création directe de compte est réservée au super-admin."""
+        self._as(self.part)
+        response = self.api.post('/api/participants/', {
+            'organization': str(self.org_a.id), 'role': 'organizer', 'status': 'active',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_participant_cannot_delete_another_profile(self):
+        """Anti-IDOR : un participant ne supprime que son propre profil."""
+        _, other_profile = make_user('autre_part', role='participant', org=self.org_a)
+        self._as(self.part)
+        response = self.api.delete(f'/api/participants/{other_profile.id}/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
 
 class InvitationSecurityTests(TestCase):
     """Invitations : jeton haché, usage unique, expiration, envoi honnête."""

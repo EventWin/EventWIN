@@ -21,7 +21,11 @@ class ParticipantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Participant
         fields = ['id', 'organization', 'full_name', 'email', 'role', 'status', 'created_at', 'preferences', 'constraints']
-        read_only_fields = ['id', 'created_at']
+        # ``role``, ``status`` et ``organization`` sont **imposés par le serveur** :
+        # un client ne peut jamais choisir ni modifier son rôle (aucune élévation
+        # de privilèges via PATCH/POST). Le rôle est fixé à l'inscription
+        # (« participant ») ou par le super-administrateur (invitation).
+        read_only_fields = ['id', 'created_at', 'role', 'status', 'organization']
         
     def get_full_name(self, obj):
         return obj.user.username if obj.user else 'Inconnu'
