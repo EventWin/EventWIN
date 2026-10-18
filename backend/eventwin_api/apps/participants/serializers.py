@@ -1,6 +1,12 @@
 from rest_framework import serializers
 
-from .models import EventParticipant, Participant, ParticipantConstraint, ParticipantPreference
+from .models import (
+    EventParticipant,
+    OrganizerInvitation,
+    Participant,
+    ParticipantConstraint,
+    ParticipantPreference,
+)
 
 
 class ParticipantSerializer(serializers.ModelSerializer):
@@ -28,10 +34,20 @@ class ParticipantSerializer(serializers.ModelSerializer):
 
 
 class EventParticipantSerializer(serializers.ModelSerializer):
+    participant_name = serializers.SerializerMethodField()
+    event_name = serializers.SerializerMethodField()
+
     class Meta:
         model = EventParticipant
-        fields = ['id', 'event', 'participant', 'attendance_status', 'satisfaction_score', 'created_at']
+        fields = ['id', 'event', 'event_name', 'participant', 'participant_name',
+                  'attendance_status', 'satisfaction_score', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+    def get_participant_name(self, obj):
+        return obj.participant.user.username if obj.participant and obj.participant.user else ''
+
+    def get_event_name(self, obj):
+        return obj.event.name if obj.event else ''
 
 
 class ParticipantPreferenceSerializer(serializers.ModelSerializer):
@@ -46,3 +62,25 @@ class ParticipantConstraintSerializer(serializers.ModelSerializer):
         model = ParticipantConstraint
         fields = ['id', 'participant', 'constraint_type', 'value', 'is_hard_constraint', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+
+class OrganizerInvitationSerializer(serializers.ModelSerializer):
+    """Invitation organisateur : expose le **statut calculé**, jamais le jeton."""
+
+    status = serializers.SerializerMethodField()
+    organizer_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrganizerInvitation
+        fields = [
+            'id', 'email', 'full_name', 'user', 'organizer_name', 'status',
+            'created_by', 'organization', 'expires_at', 'used_at', 'revoked_at',
+            'email_sent', 'email_error', 'last_sent_at', 'created_at',
+        ]
+        read_only_fields = fields
+
+    def get_status(self, obj):
+        return obj.status()
+
+    def get_organizer_name(self, obj):
+        return obj.user.username if obj.user else ''

@@ -2,9 +2,10 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Charge backend/eventwin_api/.env quel que soit le dossier de lancement.
+load_dotenv(BASE_DIR / '.env', override=True)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
@@ -19,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'apps.organizations',
     'apps.events',
     'apps.participants',
@@ -88,13 +90,128 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+
+def _env_float(name: str, default: float) -> float:
+    """Lit un flottant d'environnement sans faire planter le démarrage."""
+    try:
+        return float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    """Lit un entier d'environnement sans faire planter le démarrage."""
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_list(name: str, default: str) -> list[str]:
+    """Lit une liste séparée par des virgules."""
+    raw = os.getenv(name, default)
+    return [entry.strip().lower() for entry in raw.split(',') if entry.strip()]
+
+
 # Email Configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+# Adresse expéditrice affichée ; par défaut celle du compte SMTP.
+EMAIL_FROM = os.getenv('EMAIL_FROM', EMAIL_HOST_USER)
+# URL publique du front : sert à construire les liens d'activation et de
+# réinitialisation envoyés par e-mail.
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:4200')
+# Délai de validité des jetons (heures) : réinitialisation + invitations.
+AUTH_TOKEN_TTL_HOURS = _env_int('AUTH_TOKEN_TTL_HOURS', 48)
+INVITATION_TTL_HOURS = _env_int('INVITATION_TTL_HOURS', 168)
+
+# --- API REST ----------------------------------------------------------------
+# Toute route est refusée sans authentification **sauf** déclaration
+# explicite ``AllowAny`` (inscription, connexion, jetons publics, healthcheck).
+# Le rôle est toujours lu côté serveur (apps/core/permissions.py).
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': None,
+    'TEST_REQUEST_DEFAULT_FORMAT': 'json',
+}
+
+# --- Analyse budgétaire par IA locale (Ollama) -------------------------------
+# Ces variables étaient présentes dans .env mais jamais lues par Django.
+OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'llama3.2:3b')
+
+OLLAMA_TIMEOUT = _env_float('OLLAMA_TIMEOUT', 180.0)
+BUDGET_CURRENCY = os.getenv('BUDGET_CURRENCY', '')
+
+# --- Paramètres techniques du module Budget & Ressources ----------------------
+# Aucune décision métier n'est codée en dur dans les fichiers de l'app : les
+# valeurs techniques (délais, tailles de lot, concurrence, domaines exclus)
+# vivent ici, surchargeables par variable d'environnement.
+BUDGET_AI = {
+    'BASE_URL': OLLAMA_BASE_URL,
+    'MODEL': OLLAMA_MODEL,
+    'TIMEOUT': OLLAMA_TIMEOUT,
+    'TEMPERATURE': _env_float('OLLAMA_TEMPERATURE', 0.4),
+    # Nombre de ressources envoyées par appel LLM : le coût et le nombre
+    # d'appels ne doivent pas croître avec le nombre de ressources (2 appels
+    # maximum par analyse : un lot + l'analyse budgétaire). Surchargeable par
+    # environnement pour les machines plus ou moins puissantes.
+    'BATCH_SIZE': max(1, _env_int('OLLAMA_BATCH_SIZE', 20)),
+    # Délai global d'une analyse : au-delà, le reste passe en tâche de fond.
+    'ANALYSIS_TIMEOUT': _env_float('BUDGET_ANALYSIS_TIMEOUT', 120.0),
+    # Deux analyses simultanées du même événement sont refusées (409).
+    'LOCK_TTL': _env_float('BUDGET_ANALYSIS_LOCK_TTL', 600.0),
+}
+
+BUDGET_SEARCH = {
+    # Domaines exclus : encyclopédies, dictionnaires, moteurs de recherche,
+    # réseaux sociaux — jamais une page d'offre exploitable.
+    'BLOCKED_DOMAINS': _env_list(
+        'WEB_SEARCH_BLOCKED_DOMAINS',
+        'wikipedia.org,wiktionary.org,dictionary.com,larousse.fr,'
+        'lerobert.com,languefrancaise.net,wordreference.com,'
+        'lalanguefrancaise.com,cnrtl.fr,'
+        'reverso.net,linguee.fr,google.com,bing.com,duckduckgo.com,qwant.com,'
+        'facebook.com,instagram.com,pinterest.com,reddit.com,youtube.com',
+    ),
+    # Nombre maximal de recherches **par analyse** (garde-fou économique).
+    'MAX_SEARCHES': max(0, _env_int('WEB_SEARCH_MAX_SEARCHES', 8)),
+    'TIMEOUT': _env_float('WEB_SEARCH_TIMEOUT', 8.0),
+    'CACHE_TTL': _env_int('WEB_SEARCH_CACHE_TTL', 900),
+    'MAX_RESULTS': max(1, _env_int('WEB_SEARCH_MAX_RESULTS', 8)),
+    # Candidats réellement montrés au modèle par ressource. Un prompt court est
+    # ce qui permet au modèle de répondre pour **toutes** les ressources d'un
+    # lot. La validation lit les indices dans cette même liste bornée.
+    'MAX_PROMPT_CANDIDATES': max(1, _env_int('WEB_SEARCH_PROMPT_CANDIDATES', 3)),
+    # Recherches exécutées en parallèle (concurrence bornée).
+    'CONCURRENCY': max(1, _env_int('WEB_SEARCH_CONCURRENCY', 4)),
+    'USER_AGENT': os.getenv(
+        'WEB_SEARCH_USER_AGENT', 'EventWIN/1.0 (+https://eventwin.local; budget-check)'
+    ),
+}
+
+# --- Recherche web pour les prix (optionnelle) -------------------------------
+# Deux niveaux :
+#   1. BRAVE_SEARCH_API_KEY / SERP_API_KEY : API payante, résultats structurés
+#      et, selon le moteur, prix réellement relevés sur les pages.
+#   2. Sans aucune clé : recherche **sans clé** sur Bing (région France). Les
+#      liens renvoyés sont de vraies pages produits, mais aucun tarif n'est
+#      observé — le prix affiché reste alors une estimation IA, jamais le prix
+#      d'un fournisseur (cf. apps/budgets/websearch.py).
+WEB_SEARCH_AVAILABLE = os.getenv('WEB_SEARCH_AVAILABLE', 'false').lower() == 'true'
+WEB_SEARCH_API_KEY = os.getenv('WEB_SEARCH_API_KEY', '')
+BRAVE_SEARCH_API_KEY = os.getenv('BRAVE_SEARCH_API_KEY', '')
+SERP_API_KEY = os.getenv('SERP_API_KEY', '')
 
 JAZZMIN_SETTINGS = {
     'site_title': 'EventTwin Admin',
