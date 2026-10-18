@@ -77,7 +77,10 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             msg.attach_alternative(html_content, "text/html")
             msg.send()
         except Exception as e:
-            print(f"!!! ERREUR D'ENVOI EMAIL OTP : {e} !!!")
+            print(f"[DEV MODE / OTP] Erreur envoi email : {e}")
+            print(f"[OTP CODE POUR {email}] -> {code}")
+            if settings.DEBUG:
+                return Response({'message': 'Un code de vérification a été généré.', 'dev_otp': code})
             cache.delete(_otp_key(email))
             return Response({'error': "Échec de l'envoi du code par e-mail."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -372,7 +375,13 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             msg.attach_alternative(html_content, "text/html")
             msg.send()
         except Exception as e:
-            print(f"!!! ERREUR D'ENVOI EMAIL RESET PASSWORD : {e} !!!")
+            print(f"[DEV MODE / RESET PASSWORD] Erreur SMTP : {e}")
+            print(f"[LIEN DE RÉINITIALISATION] -> {reset_link}")
+            if settings.DEBUG:
+                return Response({
+                    'message': 'Un e-mail contenant votre lien de réinitialisation vous a été envoyé.',
+                    'dev_reset_link': reset_link
+                })
             return Response({'error': "Échec de l'envoi de l'e-mail de réinitialisation."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
         return Response({'message': 'Un e-mail contenant votre lien de réinitialisation vous a été envoyé.'})

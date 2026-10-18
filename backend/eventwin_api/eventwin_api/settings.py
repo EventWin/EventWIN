@@ -25,7 +25,6 @@ INSTALLED_APPS = [
     'apps.budgets',
     'apps.simulation',
     'apps.transport',
-    'apps.sponsors',
     'apps.ai',
     'corsheaders',
 ]
