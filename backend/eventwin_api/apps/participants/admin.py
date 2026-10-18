@@ -12,7 +12,6 @@ from .models import (
     User,
     Participant,
     Organizer,
-    AdminUser,
     EventParticipant,
     ParticipantPreference,
     ParticipantConstraint
@@ -119,14 +118,6 @@ class OrganizerAdmin(admin.ModelAdmin):
     ordering = ('-date_joined',)
 
 
-@admin.register(AdminUser)
-class AdminUserAdmin(admin.ModelAdmin):
-    """
-    Administration de la sous-classe Administrateur.
-    """
-    list_display = ('username', 'email', 'full_name', 'phone', 'status', 'date_joined')
-    search_fields = ('username', 'email', 'first_name', 'last_name')
-    ordering = ('-date_joined',)
 
 
 admin.site.register(EventParticipant)

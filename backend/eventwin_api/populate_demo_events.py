@@ -13,7 +13,6 @@ from apps.participants.models import (
     UserRole,
     Participant,
     Organizer,
-    AdminUser,
     EventParticipant,
     ParticipantPreference,
     ParticipantConstraint
@@ -27,9 +26,9 @@ org, _ = Organization.objects.get_or_create(
 )
 
 # 2. Utilisateurs démo avec rôles et hiérarchie d'héritage
-# Compte Administrateur
+# Compte Administrateur (Directement dans User, pas de sous-table admin)
 if not User.objects.filter(email='admin@eventtwin.com').exists():
-    admin_u = AdminUser.objects.create_superuser(
+    admin_u = User.objects.create_superuser(
         username='admin',
         email='admin@eventtwin.com',
         password='Pass1234!',

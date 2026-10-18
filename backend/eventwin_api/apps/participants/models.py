@@ -53,6 +53,7 @@ class User(AbstractUser):
     objects = UserManager()
 
     class Meta:
+        db_table = 'user'
         verbose_name = 'Utilisateur'
         verbose_name_plural = 'Utilisateurs'
 
@@ -101,6 +102,7 @@ class Participant(User):
     )
 
     class Meta:
+        db_table = 'participant'
         verbose_name = 'Participant'
         verbose_name_plural = 'Participants'
 
@@ -123,6 +125,7 @@ class Organizer(User):
     )
 
     class Meta:
+        db_table = 'organizer'
         verbose_name = 'Organisateur'
         verbose_name_plural = 'Organisateurs'
 
@@ -133,26 +136,9 @@ class Organizer(User):
         super().save(*args, **kwargs)
 
 
-class AdminUser(User):
-    """
-    SOUS-CLASSE ADMINISTRATEUR (SPÉCIALISATION UML PAR HÉRITAGE)
-    Hérite directement de User avec tous les privilèges superuser.
-    """
-    class Meta:
-        verbose_name = 'Administrateur'
-        verbose_name_plural = 'Administrateurs'
-
-    def save(self, *args, **kwargs):
-        if not self.role or self.role == UserRole.PARTICIPANT:
-            self.role = UserRole.ADMIN
-        self.is_staff = True
-        self.is_superuser = True
-        super().save(*args, **kwargs)
-
-
-# Alias pour rétrocompatibilité
+# Alias pour rétrocompatibilité (l'admin est un User avec role=ADMIN, pas de sous-table distincte)
 UserProfile = User
-AdminProfile = AdminUser
+AdminProfile = User
 
 
 class EventParticipant(UUIDTimestampedModel):

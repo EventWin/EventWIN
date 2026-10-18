@@ -19,7 +19,6 @@ from .models import (
     User,
     Participant,
     Organizer,
-    AdminUser,
     EventParticipant,
     ParticipantPreference,
     ParticipantConstraint,
