@@ -61,16 +61,27 @@ TEMPLATES = [
 WSGI_APPLICATION = 'eventwin_api.wsgi.application'
 ASGI_APPLICATION = 'eventwin_api.asgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'eventwin'),
-        'USER': os.getenv('DB_USER', 'eventwin'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'eventwin'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+# Choix de la base de données : SQLite par défaut (zéro config requise) ou PostgreSQL si spécifié
+USE_POSTGRES = os.getenv('USE_POSTGRES', 'False').lower() in ('true', '1')
+
+if USE_POSTGRES:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'eventwin'),
+            'USER': os.getenv('DB_USER', 'eventwin'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'eventwin'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
