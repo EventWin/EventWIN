@@ -500,6 +500,13 @@ class EventParticipantViewSet(EventFilterMixin, viewsets.ModelViewSet):
                 {'error': 'Les inscriptions ne sont ouvertes que pour un événement publié.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # Un événement terminé n'accepte plus d'inscription (fin, à défaut début).
+        last_day = event.end_date or event.start_date
+        if last_day and last_day < timezone.localdate():
+            return Response(
+                {'error': 'Cet événement est terminé : les inscriptions sont closes.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Le participant s'inscrit **lui-même** ; seul un organisateur du
         # périmètre peut inscrire un tiers.

@@ -427,6 +427,7 @@ td b{color:var(--tx);font-weight:600}
 .leaving p{color:var(--tx-2);font-size:13.5px;margin-bottom:22px}
 
 /* Rôles */
+body.pe-lock{overflow:hidden}
 body[data-role="client"] .only-admin{display:none!important}
 body[data-role="participant"] .only-admin{display:none!important}
 body[data-role="organizer"] .only-admin{display:none!important}

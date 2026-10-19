@@ -375,3 +375,65 @@ class QuizSecurityTests(TestCase):
         summary = response.json()['questions'][0]
         self.assertEqual(summary['answered_count'], 0)
         self.assertEqual(summary['unanswered_count'], 1)
+
+
+class SelfRegistrationTests(TestCase):
+    """Inscription d'un participant à un événement disponible."""
+
+    def setUp(self):
+        self.org = make_org('OrgReg')
+        self.orga, _ = make_user('orga_reg', role='organizer', org=self.org)
+        self.part, self.part_profile = make_user('part_reg', role='participant')
+        self.other, self.other_profile = make_user('other_reg', role='participant')
+        today = timezone.localdate()
+        self.event = Event.objects.create(
+            organization=self.org, owner=self.orga, name='Ouvert',
+            status='published', target_budget=0,
+            start_date=today + timedelta(days=5), end_date=today + timedelta(days=6),
+        )
+        self.api = APIClient()
+        self.api.force_authenticate(user=self.part)
+
+    def _join(self, event):
+        return self.api.post('/api/event-participants/', {'event': str(event.id)}, format='json')
+
+    def test_participant_joins_published_event(self):
+        response = self._join(self.event)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(EventParticipant.objects.filter(
+            event=self.event, participant=self.part_profile).exists())
+
+    def test_participant_cannot_register_someone_else(self):
+        response = self.api.post('/api/event-participants/', {
+            'event': str(self.event.id), 'participant': str(self.other_profile.id),
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(EventParticipant.objects.filter(participant=self.other_profile).exists())
+
+    def test_duplicate_registration_is_refused(self):
+        self._join(self.event)
+        self.assertEqual(self._join(self.event).status_code, status.HTTP_409_CONFLICT)
+
+    def test_full_event_is_refused(self):
+        self.event.capacity = 1
+        self.event.save()
+        EventParticipant.objects.create(event=self.event, participant=self.other_profile)
+        self.assertEqual(self._join(self.event).status_code, status.HTTP_409_CONFLICT)
+
+    def test_draft_event_is_not_joinable(self):
+        self.event.status = 'draft'
+        self.event.save()
+        self.assertEqual(self._join(self.event).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_past_event_is_not_joinable(self):
+        past = timezone.localdate() - timedelta(days=3)
+        self.event.start_date = past
+        self.event.end_date = past
+        self.event.save()
+        self.assertEqual(self._join(self.event).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_participant_can_leave_own_registration(self):
+        registration_id = self._join(self.event).json()['id']
+        response = self.api.delete(f'/api/event-participants/{registration_id}/')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(EventParticipant.objects.filter(pk=registration_id).exists())

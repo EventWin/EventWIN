@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, CanMatchFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 /**
@@ -42,6 +42,12 @@ export const organizerGuard: CanActivateFn = (_route, state) => {
   // dans son propre espace.
   return auth.isOrganizer ? true : router.createUrlTree([auth.homeRoute()]);
 };
+
+/**
+ * Sélectionne la variante « participant » d'une route partagée (même URL,
+ * interface différente selon le rôle). Sinon, la route suivante est essayée.
+ */
+export const participantMatch: CanMatchFn = () => inject(AuthService).isParticipant;
 
 /** Espace réservé au super-administrateur. */
 export const adminGuard: CanActivateFn = (_route, state) => {

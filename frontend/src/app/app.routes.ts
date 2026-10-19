@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { adminGuard, authGuard, guestGuard, organizerGuard } from './guards/auth.guard';
+import { adminGuard, authGuard, guestGuard, organizerGuard, participantMatch } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./pages/frontoffice/landing/landing.component').then(m => m.LandingComponent), pathMatch: 'full', canActivate: [guestGuard] },
@@ -34,6 +34,9 @@ export const routes: Routes = [
       { path: 'supervision', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/home/home.component').then(m => m.HomeComponent) },
       { path: 'optim', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/optim/optim.component').then(m => m.OptimComponent) },
       { path: 'fit', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/fit/fit.component').then(m => m.FitComponent) },
+      // Même URL, deux interfaces : découverte + inscription pour le participant,
+      // gestion (création, édition) pour l'organisateur.
+      { path: 'events', canMatch: [participantMatch], loadComponent: () => import('./pages/frontoffice/participant-events/participant-events.component').then(m => m.ParticipantEventsComponent) },
       { path: 'events', loadComponent: () => import('./pages/backoffice/events/events.component').then(m => m.EventsComponent) },
       { path: 'participants', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/participants/participants.component').then(m => m.ParticipantsComponent) },
       { path: 'budgets', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/budgets/budgets.component').then(m => m.BudgetsComponent) },
