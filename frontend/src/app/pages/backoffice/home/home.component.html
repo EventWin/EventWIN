@@ -47,6 +47,7 @@
       <ng-container *ngIf="data; else sk">
         <div class="val n">{{ money(data.totals.estimated_total) }}</div>
         <div class="foot">sur {{ money(data.totals.budget) }} prévus<ng-container *ngIf="budgetRate != null"> · {{ budgetRate }} %</ng-container></div>
+        <div class="foot" *ngIf="data.totals.sponsoring_confirmed">dont <span class="kpi-delta up">{{ money(data.totals.sponsoring_confirmed) }}</span> couverts par les sponsors</div>
       </ng-container>
     </div>
     <div class="stat" [class.lit]="data && !data.totals.over_budget" [class.alarm]="data?.totals?.over_budget">
@@ -73,10 +74,10 @@
       <div class="tw">
         <table>
           <thead>
-            <tr><th>Événement</th><th>Date</th><th>Inscrits</th><th>Budget</th><th>Adéquation IA</th><th>Statut</th></tr>
+            <tr><th>Événement</th><th>Date</th><th>Inscrits</th><th>Budget</th><th>Sponsoring</th><th>Adéquation IA</th><th>Statut</th></tr>
           </thead>
           <tbody *ngIf="loading">
-            <tr *ngFor="let i of [1,2,3,4]"><td colspan="6"><div class="skeleton" style="height:30px"></div></td></tr>
+            <tr *ngFor="let i of [1,2,3,4]"><td colspan="7"><div class="skeleton" style="height:30px"></div></td></tr>
           </tbody>
           <tbody *ngIf="!loading">
             <tr *ngFor="let e of events" class="row" (click)="openTwin(e.id)" tabindex="0" (keydown.enter)="openTwin(e.id)">
@@ -99,6 +100,14 @@
                 </ng-container>
                 <ng-template #noBudget><span class="muted tiny">Budget non défini</span></ng-template>
               </td>
+              <td class="metric">
+                <ng-container *ngIf="e.sponsoring_confirmed || e.sponsoring_weighted; else noSponsor">
+                  <span class="n pos">{{ money(e.sponsoring_confirmed) }}</span>
+                  <small class="sub" *ngIf="e.sponsoring_weighted">+ {{ money(e.sponsoring_weighted) }} pondéré</small>
+                  <small class="sub" *ngIf="e.net_cost != null">coût net {{ money(e.net_cost) }}</small>
+                </ng-container>
+                <ng-template #noSponsor><a class="link tiny" routerLink="/app/sponsors" (click)="$event.stopPropagation()">Ajouter</a></ng-template>
+              </td>
               <td>
                 <span *ngIf="e.fit" class="fit-chip" [class.good]="e.fit.average >= 65" [class.mid]="e.fit.average >= 45 && e.fit.average < 65"
                       [title]="'Moyenne sur ' + e.fit.count + ' profil(s) analysé(s)'">{{ e.fit.average }}<small>/100</small></span>
@@ -110,7 +119,7 @@
               </td>
             </tr>
             <tr *ngIf="!events.length">
-              <td colspan="6">
+              <td colspan="7">
                 <div class="state">
                   <h4>Aucun événement à superviser</h4>
                   <p>Créez votre premier événement pour voir apparaître son budget, ses inscriptions et son jumeau 3D.</p>

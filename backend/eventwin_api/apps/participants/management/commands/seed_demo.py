@@ -18,6 +18,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -394,6 +395,10 @@ class Command(BaseCommand):
                 defaults={'attendance_status': 'registered'},
             )
 
+        # Sponsoring de démonstration sur le sommet (packages Or/Argent/Bronze,
+        # deals à différents stades du pipeline). Idempotent.
+        call_command('seed_sponsors', event=str(events[0].pk), stdout=self.stdout)
+
         self.stdout.write(self.style.SUCCESS(
             f'Démo prête : {len(events)} événements, {len(participants)} participants, '
             f'{len(REGISTRATIONS)} inscriptions (organisation « {DEMO_ORG} »).'
@@ -407,7 +412,10 @@ class Command(BaseCommand):
     # --- Aides ---------------------------------------------------------------
 
     def _reset(self):
+        from apps.sponsors.models import Sponsor
+
         demo_users = User.objects.filter(email__endswith=f'@{DEMO_DOMAIN}')
+        Sponsor.objects.filter(organization__name=DEMO_ORG).delete()
         Event.objects.filter(organization__name=DEMO_ORG).delete()
         Participant.objects.filter(user__in=demo_users).delete()
         demo_users.delete()

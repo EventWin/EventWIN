@@ -20,6 +20,8 @@ export const routes: Routes = [
   // deux flux à jeton, lisus dans l'URL (?token=...).
   { path: 'activate', loadComponent: () => import('./pages/frontoffice/auth/activate/activate.component').then(m => m.ActivateComponent) },
   { path: 'reset', loadComponent: () => import('./pages/frontoffice/auth/reset/reset.component').then(m => m.ResetComponent) },
+  // Portail sponsor : accès par lien signé, sans compte.
+  { path: 'sponsor/:token', loadComponent: () => import('./pages/frontoffice/sponsor-portal/sponsor-portal.component').then(m => m.SponsorPortalComponent) },
   { path: 'logout', loadComponent: () => import('./pages/frontoffice/auth/logout/logout.component').then(m => m.LogoutComponent) },
   {
     path: 'app',
@@ -36,6 +38,7 @@ export const routes: Routes = [
       { path: 'participants', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/participants/participants.component').then(m => m.ParticipantsComponent) },
       { path: 'budgets', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/budgets/budgets.component').then(m => m.BudgetsComponent) },
       { path: 'budgets/:eventId', canActivate: [organizerGuard], loadComponent: () => import('./pages/backoffice/budgets/budget-detail.component').then(m => m.BudgetDetailComponent) },
+      { path: 'sponsors', canActivate: [organizerGuard], loadChildren: () => import('./pages/backoffice/sponsors/sponsors.routes').then(m => m.SPONSORS_ROUTES) },
       { path: 'teams', canActivate: [adminGuard], loadComponent: () => import('./pages/backoffice/teams/teams.component').then(m => m.TeamsComponent) },
       { path: 'profile', loadComponent: () => import('./pages/frontoffice/participant-profile/participant-profile.component').then(m => m.ParticipantProfileComponent) }
     ]

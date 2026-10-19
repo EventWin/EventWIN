@@ -16,3 +16,7 @@ dist/
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Bases locales SQLite et réglages personnels : jamais versionnés
+*.sqlite3
+backend/eventwin_api/eventwin_api/settings_local.py

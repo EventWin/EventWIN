@@ -56,3 +56,5 @@
 @media (max-width: 720px) {
   .side-col { grid-template-columns: 1fr; }
 }
+
+.metric .n.pos{color:var(--gain)}

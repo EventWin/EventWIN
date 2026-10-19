@@ -1,0 +1,102 @@
+import pytest
+from django.contrib.auth.models import User
+from rest_framework.test import APIClient
+
+from apps.events.models import Event
+from apps.organizations.models import Organization
+from apps.participants.models import Participant
+
+
+@pytest.fixture
+def org_a(db):
+    return Organization.objects.create(name='Org Alpha', legal_name='Org Alpha SAS')
+
+
+@pytest.fixture
+def org_b(db):
+    return Organization.objects.create(name='Org Beta', legal_name='Org Beta SAS')
+
+
+def _participant(username, email, role, organization=None, is_superuser=False):
+    # ``role`` suit les choix du modèle (participant / organizer) : un
+    # administrateur est un super-utilisateur Django.
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        password='pass1234',
+        is_superuser=is_superuser,
+    )
+    return Participant.objects.create(
+        user=user,
+        organization=organization,
+        role=role,
+        status='active',
+    )
+
+
+@pytest.fixture
+def organizer_a(org_a):
+    return _participant('orga-a', 'orga-a@test.local', 'organizer', org_a)
+
+
+@pytest.fixture
+def organizer_b(org_b):
+    return _participant('orga-b', 'orga-b@test.local', 'organizer', org_b)
+
+
+@pytest.fixture
+def organizer_no_org(db):
+    return _participant('orga-none', 'orga-none@test.local', 'organizer', None)
+
+
+@pytest.fixture
+def attendee(org_a):
+    return _participant('guest', 'guest@test.local', 'participant', org_a)
+
+
+@pytest.fixture
+def admin_user(org_a):
+    return _participant('admin', 'admin@test.local', 'organizer', org_a, is_superuser=True)
+
+
+@pytest.fixture
+def superadmin_no_profile(db):
+    """Super-administrateur Django sans profil Participant (cas réel du projet)."""
+    return User.objects.create_superuser('root', 'root@test.local', 'pass1234')
+
+
+@pytest.fixture
+def event_a(org_a):
+    return Event.objects.create(
+        organization=org_a,
+        name='Sommet Alpha',
+        status='published',
+        start_date='2026-06-01',
+        end_date='2026-06-03',
+        target_budget='20000.00',
+        participant_expected=200,
+    )
+
+
+@pytest.fixture
+def event_b(org_b):
+    return Event.objects.create(
+        organization=org_b,
+        name='Forum Beta',
+        status='published',
+        start_date='2026-09-01',
+        end_date='2026-09-02',
+        target_budget='8000.00',
+        participant_expected=80,
+    )
+
+
+def api_client(participant=None):
+    """Client authentifié comme le ferait le jeton DRF du projet.
+
+    Accepte un ``Participant`` ou directement un ``User`` (super-admin sans profil).
+    """
+    client = APIClient()
+    if participant is not None:
+        client.force_authenticate(user=getattr(participant, 'user', participant))
+    return client

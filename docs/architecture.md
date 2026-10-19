@@ -55,6 +55,14 @@ AI service (optional)
 - comparison dashboard
 - satisfaction scoring
 
+### 5. Sponsoring
+- sponsor (CRM, créé par un organisateur)
+- sponsorship package, deal et pipeline
+- contreparties (deliverables) et paiements
+- score de pertinence, conflits, alertes
+- budget net et impact sur scénario (lecture seule)
+- portail sponsor par lien signé (voir `docs/sponsors.md`)
+
 ## Backend app structure
 
 ```text
@@ -70,6 +78,8 @@ backend/eventwin_api/
     participants/
     budgets/
     simulation/
+    transport/
+    sponsors/
     ai/
 ```
 

@@ -19,6 +19,7 @@ const CRUMBS: Record<string, string> = {
   budgets: 'Budgets & ressources',
   optim: 'Optimiser',
   fit: 'Adéquation IA',
+  sponsors: 'Sponsors',
   teams: 'Équipes & accès',
   profile: 'Mon profil',
 };

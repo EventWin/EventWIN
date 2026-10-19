@@ -12,6 +12,10 @@ interface DashboardEvent {
   budget: number | null; estimated_total: number | null; budget_status: string; usage_rate: number | null;
   priced_count: number; unpriced_count: number; items_count: number;
   fit: { average: number; count: number } | null;
+  sponsoring_confirmed: number;
+  sponsoring_weighted: number;
+  net_cost: number | null;
+  sponsor_alerts: { severity: 'error' | 'warning' | string; message: string }[];
 }
 interface Dashboard {
   scope: 'admin' | 'organizer';
@@ -19,6 +23,7 @@ interface Dashboard {
     events: number; active: number; drafts: number; upcoming_30d: number; organizations: number;
     registrations: number; participants: number; expected: number;
     budget: number; estimated_total: number; over_budget: number; budget_missing: number; without_estimate: number;
+    sponsoring_confirmed: number; sponsoring_weighted: number;
   };
   events: DashboardEvent[];
   activity: { kind: 'registration' | 'event' | 'fit'; at: string; title: string; detail: string; event_id: string | null }[];
@@ -109,6 +114,10 @@ export class HomeComponent implements OnInit {
       } else if (!e.items_count && e.status !== 'draft') {
         out.push({ level: 'info', eventId: e.id, title: `${e.name} : aucune ressource chiffrée`,
           detail: 'Ajoutez les postes de dépense pour estimer le coût réel.' });
+      }
+      for (const a of e.sponsor_alerts ?? []) {
+        out.push({ level: a.severity === 'error' ? 'risk' : 'warn', eventId: e.id,
+          title: `${e.name} : sponsoring`, detail: a.message });
       }
       if (e.fit && e.fit.average < 50) {
         out.push({ level: 'warn', eventId: e.id, title: `${e.name} : adéquation faible`,

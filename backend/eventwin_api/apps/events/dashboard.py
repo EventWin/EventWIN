@@ -17,6 +17,7 @@ from apps.budgets.calculations import calculate_budget
 from apps.budgets.models import BudgetItem
 from apps.core.permissions import IsOrganizer, events_manageable, is_super_admin
 from apps.participants.models import EventParticipant, display_name
+from apps.sponsors import services as sponsor_services
 
 ACTIVITY_LIMIT = 10
 
@@ -65,6 +66,7 @@ def dashboard(request):
     rows = []
     for event in events:
         budget = calculate_budget(event, items_by_event.get(event.pk, []))
+        sponsoring = sponsor_services.pipeline_summary(event)
         days_until = (event.start_date - today).days if event.start_date else None
         finished = bool(event.end_date and event.end_date < today) or event.status in ('completed', 'cancelled')
         rows.append({
@@ -90,6 +92,17 @@ def dashboard(request):
             'unpriced_count': budget['unpriced_count'],
             'items_count': len(items_by_event.get(event.pk, [])),
             'fit': fit.get(str(event.pk)),
+            # Sponsoring (module Sponsors) : réduit le coût restant à financer.
+            'sponsoring_confirmed': float(sponsoring['confirmed_cash']),
+            'sponsoring_weighted': float(sponsoring['weighted_pipeline']),
+            'net_cost': (
+                float(budget['total']) - float(sponsoring['confirmed_cash'])
+                if budget['total'] is not None else None
+            ),
+            'sponsor_alerts': [
+                {'severity': a['severity'], 'message': a['message']}
+                for a in sponsor_services.build_alerts(event)
+            ][:3],
         })
 
     # Les plus urgents d'abord : dépassement, puis date la plus proche.
@@ -155,6 +168,8 @@ def dashboard(request):
             'over_budget': sum(1 for row in active if row['budget_status'] == 'over_budget'),
             'budget_missing': sum(1 for row in active if row['budget_status'] == 'budget_missing'),
             'without_estimate': sum(1 for row in active if not row['priced_count']),
+            'sponsoring_confirmed': sum(row['sponsoring_confirmed'] for row in active),
+            'sponsoring_weighted': sum(row['sponsoring_weighted'] for row in active),
         },
         'events': rows,
         'activity': activity[:ACTIVITY_LIMIT],

@@ -38,6 +38,17 @@ interface ResourceRow {
   warn?: string;
 }
 
+/** Réponse de ``/api/sponsorship-net-budget/`` (module Sponsors). */
+interface SponsorFunding {
+  currency: string;
+  planned_cost: number;
+  confirmed_sponsorship: number;
+  weighted_sponsorship: number;
+  best_case_sponsorship: number;
+  net_pessimistic: number;
+  net_weighted: number;
+}
+
 /** Besoins des participants inscrits, regroupés par type de contrainte. */
 interface ConstraintGroup {
   type: string;
@@ -220,6 +231,30 @@ const MAX_ROWS = 20;
           </div>
         </section>
       </div>
+
+      <!-- ================= Financement sponsors ================= -->
+      <section class="card funding" *ngIf="sponsoring as sp" aria-label="Financement sponsors">
+        <div class="card-top">
+          <h3>Financement sponsors</h3>
+          <span class="hint">le sponsoring réduit le coût restant à financer</span>
+          <a class="link fund-link" routerLink="/app/sponsors/pipeline">Gérer les sponsors →</a>
+        </div>
+        <div class="fund-grid">
+          <div><span>Confirmé</span><b class="n pos">{{ sp.confirmed_sponsorship | number:'1.0-0' }} €</b><small>deals signés ou payés</small></div>
+          <div><span>Pipeline pondéré</span><b class="n">{{ sp.weighted_sponsorship | number:'1.0-0' }} €</b><small>montant × probabilité</small></div>
+          <div><span>Coût estimé</span><b class="n">{{ sp.planned_cost | number:'1.0-0' }} €</b><small>ressources chiffrées</small></div>
+          <div class="net">
+            <span>{{ sp.net_pessimistic < 0 ? 'Excédent après sponsoring' : 'Coût net à financer' }}</span>
+            <b class="n" [class.pos]="sp.net_pessimistic <= 0">{{ abs(sp.net_pessimistic) | number:'1.0-0' }} €</b>
+            <small>coût estimé − sponsoring confirmé</small>
+          </div>
+        </div>
+        <div class="fund-bar" *ngIf="sp.planned_cost > 0" [title]="sponsorCoverage + ' % du coût couvert par le sponsoring confirmé'">
+          <i [style.width.%]="sponsorCoverage"></i>
+        </div>
+        <p class="mut mini" *ngIf="sp.planned_cost > 0">{{ sponsorCoverage }} % du coût estimé couvert par le sponsoring confirmé.</p>
+        <p class="mut mini" *ngIf="!sp.planned_cost">Lancez l’analyse IA pour chiffrer les ressources : le coût net sera calculé automatiquement.</p>
+      </section>
 
       <!-- ================= Besoins des participants ================= -->
       <section class="card needs" aria-label="Besoins des participants inscrits">
@@ -645,6 +680,18 @@ const MAX_ROWS = 20;
     .del svg{width:14px;height:14px}
     .del:hover{background:rgba(217,63,90,.1);color:var(--risk)}
 
+    /* ---------- Financement sponsors ---------- */
+    .funding{margin-top:16px}
+    .fund-link{margin-left:auto;font-size:12.5px}
+    .fund-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .fund-grid div{display:grid;gap:2px;padding:12px 14px;border-radius:12px;background:var(--sub)}
+    .fund-grid div.net{background:var(--accent-soft)}
+    .fund-grid span{font-size:11.5px;font-weight:600;color:var(--tx-3)}
+    .fund-grid b{font-size:19px;font-weight:700}
+    .fund-grid small{font-size:11px;color:var(--tx-3)}
+    .fund-bar{height:8px;border-radius:8px;background:var(--sub);overflow:hidden;margin:14px 0 6px}
+    .fund-bar i{display:block;height:100%;border-radius:8px;background:var(--gain);transition:width .6s var(--ease)}
+
     /* ---------- Besoins des participants ---------- */
     .needs{margin-top:16px}
     .needs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
@@ -745,6 +792,7 @@ const MAX_ROWS = 20;
       .bout{grid-template-columns:1fr;grid-template-areas:"res" "tot" "adv" "amb"}
       .c-tot{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:20px}
     }
+    @media (max-width:1000px){.fund-grid{grid-template-columns:1fr 1fr}}
     @media (max-width:760px){
       .layout{grid-template-columns:1fr}
       .layout>.card{height:auto}
@@ -767,6 +815,8 @@ export class BudgetDetailComponent implements OnInit {
   summary: BudgetSummary | null = null;
   constraints: ConstraintGroup[] = [];
   registeredCount = 0;
+  /** Financement sponsors (module Sponsors) : réduit le coût restant à la charge de l'organisation. */
+  sponsoring: SponsorFunding | null = null;
 
   rows: ResourceRow[] = [];
   private removedIds: string[] = [];
@@ -1090,6 +1140,7 @@ export class BudgetDetailComponent implements OnInit {
         this.ensureTrailingRow();
         this.load = 'ok';
         this.loadConstraints();
+        this.loadSponsoring();
         if (this.analyzeOnLoad && this.activeRows.length) {
           this.analyzeOnLoad = false;
           this.runAnalysis();
@@ -1235,6 +1286,7 @@ export class BudgetDetailComponent implements OnInit {
     }
     this.analysis = res as AiAnalysis;
     this.aiState = 'ok';
+    this.loadSponsoring();
     this.removedIds = [];
     this.pending = null;
 
@@ -1363,6 +1415,21 @@ export class BudgetDetailComponent implements OnInit {
     this.pending = null;
     this.draftNotice =
       'Quantités reportées dans vos ressources. Relancez « Analyse IA » pour recalculer le budget.';
+  }
+
+  // ---- Financement sponsors ------------------------------------------------
+
+  /** Coût net = coût estimé (même calcul que cette page) − sponsoring confirmé. */
+  private loadSponsoring(): void {
+    this.http.get<SponsorFunding>(`/api/sponsorship-net-budget/?event=${this.eventId}`)
+      .pipe(catchError(() => of(null)))
+      .subscribe((data) => (this.sponsoring = data));
+  }
+
+  get sponsorCoverage(): number {
+    const s = this.sponsoring;
+    if (!s || !s.planned_cost) return 0;
+    return Math.min(100, Math.round((s.confirmed_sponsorship / s.planned_cost) * 100));
   }
 
   // ---- Contraintes alimentaires (agrégat, sans données nominatives) -------
