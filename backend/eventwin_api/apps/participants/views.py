@@ -42,7 +42,9 @@ from .models import (
     ParticipantConstraint,
     ParticipantPreference,
     PasswordResetToken,
+    display_name,
     hash_token,
+    split_full_name,
 )
 from .serializers import (
     EventParticipantSerializer,
@@ -71,7 +73,7 @@ def _session_payload(request, user, participant):
         'participant': {
             'id': str(profile.id) if profile else '',
             'email': user.email,
-            'full_name': user.username,
+            'full_name': display_name(user),
             'role': role,
             'status': getattr(profile, 'status', 'active'),
         },
@@ -184,7 +186,7 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             return Response({
                 'id': '',
                 'email': request.user.email,
-                'full_name': request.user.username,
+                'full_name': display_name(request.user),
                 'role': role,
                 'status': 'active',
             })
@@ -228,7 +230,11 @@ class ParticipantViewSet(viewsets.ModelViewSet):
         organization = Organization.objects.order_by('created_at').first()
 
         with transaction.atomic():
-            user = User.objects.create_user(username=email, email=email, password=password)
+            first_name, last_name = split_full_name(full_name)
+            user = User.objects.create_user(
+                username=email, email=email, password=password,
+                first_name=first_name, last_name=last_name,
+            )
             # Rôle **forcé** côté serveur : aucune élévation possible.
             profile = Participant.objects.create(
                 user=user, organization=organization, role='participant', status='active'
@@ -288,7 +294,7 @@ class ParticipantViewSet(viewsets.ModelViewSet):
             subject='EventTwin — réinitialisation de votre mot de passe',
             template='emails/reset_password.html',
             context={
-                'full_name': user.username,
+                'full_name': display_name(user),
                 'reset_url': reset_url,
                 'expires_hours': settings.AUTH_TOKEN_TTL_HOURS,
             },

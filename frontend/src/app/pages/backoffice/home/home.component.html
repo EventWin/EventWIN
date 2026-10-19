@@ -1,0 +1,167 @@
+<div class="page-head">
+  <div>
+    <div class="eyebrow">{{ data?.scope === 'admin' ? 'Portefeuille global' : 'Mes événements' }}</div>
+    <h1 class="title">{{ greeting }}{{ firstName ? ', ' + firstName : '' }}</h1>
+    <p class="lede" *ngIf="data">
+      {{ data.totals.active }} événement(s) actif(s)
+      <ng-container *ngIf="data.totals.upcoming_30d"> · {{ data.totals.upcoming_30d }} dans les 30 prochains jours</ng-container>
+      <ng-container *ngIf="data.totals.over_budget"> · <span class="risk-txt">{{ data.totals.over_budget }} en dépassement</span></ng-container>
+      <ng-container *ngIf="!data.totals.over_budget && data.totals.active"> · aucun dépassement</ng-container>
+    </p>
+    <p class="lede" *ngIf="loading">Chargement du portefeuille…</p>
+  </div>
+  <div class="acts">
+    <a class="btn btn-sm" routerLink="/app/events">Gérer les événements</a>
+    <a class="btn btn-primary btn-sm" routerLink="/app/home">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.2"/></svg>
+      Ouvrir le jumeau 3D
+    </a>
+  </div>
+</div>
+
+<div *ngIf="error" class="card state">
+  <h4>Tableau de bord indisponible</h4>
+  <p>{{ error }}</p>
+  <button class="btn btn-sm" type="button" (click)="load()">Réessayer</button>
+</div>
+
+<ng-container *ngIf="!error">
+  <!-- Indicateurs -->
+  <div class="grid g4">
+    <div class="stat">
+      <div class="lab">Événements actifs</div>
+      <ng-container *ngIf="data; else sk">
+        <div class="val n">{{ data.totals.active }}</div>
+        <div class="foot">{{ data.totals.drafts }} brouillon(s)<ng-container *ngIf="data.scope === 'admin'"> · {{ data.totals.organizations }} organisation(s)</ng-container></div>
+      </ng-container>
+    </div>
+    <div class="stat">
+      <div class="lab">Inscriptions</div>
+      <ng-container *ngIf="data; else sk">
+        <div class="val n">{{ data.totals.registrations }}<sup *ngIf="data.totals.expected">/{{ data.totals.expected }}</sup></div>
+        <div class="foot">{{ data.totals.participants }} participant(s) distinct(s)<ng-container *ngIf="registrationRate != null"> · {{ registrationRate }} % de l’attendu</ng-container></div>
+      </ng-container>
+    </div>
+    <div class="stat">
+      <div class="lab">Coût estimé / budget</div>
+      <ng-container *ngIf="data; else sk">
+        <div class="val n">{{ money(data.totals.estimated_total) }}</div>
+        <div class="foot">sur {{ money(data.totals.budget) }} prévus<ng-container *ngIf="budgetRate != null"> · {{ budgetRate }} %</ng-container></div>
+      </ng-container>
+    </div>
+    <div class="stat" [class.lit]="data && !data.totals.over_budget" [class.alarm]="data?.totals?.over_budget">
+      <div class="lab"><span class="dotlive"></span> En dépassement</div>
+      <ng-container *ngIf="data; else sk">
+        <div class="val n">{{ data.totals.over_budget }}</div>
+        <div class="foot">{{ data.totals.budget_missing }} sans budget · {{ data.totals.without_estimate }} sans estimation</div>
+      </ng-container>
+    </div>
+  </div>
+
+  <div class="layout mt">
+    <!-- Portefeuille -->
+    <div class="card list-card">
+      <div class="list-head">
+        <div>
+          <h3>Portefeuille</h3>
+          <p class="muted tiny">Trié par urgence · cliquez une ligne pour ouvrir son jumeau 3D</p>
+        </div>
+        <button *ngIf="finishedCount" class="btn btn-sm show-done" type="button" (click)="showFinished = !showFinished">
+          {{ showFinished ? 'Masquer' : 'Afficher' }} les terminés ({{ finishedCount }})
+        </button>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>Événement</th><th>Date</th><th>Inscrits</th><th>Budget</th><th>Adéquation IA</th><th>Statut</th></tr>
+          </thead>
+          <tbody *ngIf="loading">
+            <tr *ngFor="let i of [1,2,3,4]"><td colspan="6"><div class="skeleton" style="height:30px"></div></td></tr>
+          </tbody>
+          <tbody *ngIf="!loading">
+            <tr *ngFor="let e of events" class="row" (click)="openTwin(e.id)" tabindex="0" (keydown.enter)="openTwin(e.id)">
+              <td>
+                <b>{{ e.name }}</b>
+                <small class="sub">{{ e.event_type }}<ng-container *ngIf="data?.scope === 'admin' && e.organization_name"> · {{ e.organization_name }}</ng-container></small>
+              </td>
+              <td class="nowrap">
+                <span class="n">{{ e.start_date ? (e.start_date | date:'d MMM yyyy') : '—' }}</span>
+                <small class="sub" [class.soon]="e.days_until != null && e.days_until >= 0 && e.days_until <= 30">{{ countdown(e) }}</small>
+              </td>
+              <td class="metric">
+                <span class="n">{{ e.registered }}<small *ngIf="e.expected">/{{ e.expected }}</small></span>
+                <div class="progress" *ngIf="e.expected"><i [style.width.%]="pct(e.registered, e.expected)"></i></div>
+              </td>
+              <td class="metric">
+                <ng-container *ngIf="e.budget; else noBudget">
+                  <span class="n">{{ money(e.estimated_total) }}<small> / {{ money(e.budget) }}</small></span>
+                  <div class="progress {{ budgetTone(e) }}"><i [style.width.%]="pct(e.estimated_total, e.budget)"></i></div>
+                </ng-container>
+                <ng-template #noBudget><span class="muted tiny">Budget non défini</span></ng-template>
+              </td>
+              <td>
+                <span *ngIf="e.fit" class="fit-chip" [class.good]="e.fit.average >= 65" [class.mid]="e.fit.average >= 45 && e.fit.average < 65"
+                      [title]="'Moyenne sur ' + e.fit.count + ' profil(s) analysé(s)'">{{ e.fit.average }}<small>/100</small></span>
+                <a *ngIf="!e.fit" class="link tiny" routerLink="/app/fit" (click)="$event.stopPropagation()">Analyser</a>
+              </td>
+              <td>
+                <span class="chip" [class.gain]="e.status === 'published'" [class.warn]="e.status === 'draft'"
+                      [class.risk]="e.status === 'cancelled'">{{ e.status_label }}</span>
+              </td>
+            </tr>
+            <tr *ngIf="!events.length">
+              <td colspan="6">
+                <div class="state">
+                  <h4>Aucun événement à superviser</h4>
+                  <p>Créez votre premier événement pour voir apparaître son budget, ses inscriptions et son jumeau 3D.</p>
+                  <a class="btn btn-primary btn-sm" routerLink="/app/events">Créer un événement</a>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="side-col">
+      <!-- Points d'attention -->
+      <div class="card">
+        <div class="card-head"><h3>Points d’attention</h3><p *ngIf="data">{{ alerts.length }}</p></div>
+        <div *ngIf="loading" class="skeleton" style="height:120px"></div>
+        <div class="alerts" *ngIf="!loading">
+          <button *ngFor="let a of alerts" type="button" class="alert {{ a.level }}" (click)="openTwin(a.eventId)">
+            <i></i>
+            <div><b>{{ a.title }}</b><small>{{ a.detail }}</small></div>
+          </button>
+          <div *ngIf="!alerts.length" class="all-good">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            Rien à signaler pour l’instant.
+          </div>
+        </div>
+      </div>
+
+      <!-- Activité -->
+      <div class="card">
+        <div class="card-head"><h3>Activité récente</h3></div>
+        <div *ngIf="loading" class="skeleton" style="height:160px"></div>
+        <div class="feed" *ngIf="!loading">
+          <div class="feed-item" *ngFor="let a of data?.activity">
+            <span class="feed-ico {{ a.kind }}">
+              <svg *ngIf="a.kind === 'registration'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="10" cy="8" r="3.2"/><path d="M4 20c0-3.3 2.7-5.5 6-5.5M17 14v6M14 17h6"/></svg>
+              <svg *ngIf="a.kind === 'event'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              <svg *ngIf="a.kind === 'fit'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7z"/></svg>
+            </span>
+            <div>
+              <b>{{ a.title }}</b>
+              <small>{{ a.detail }}</small>
+            </div>
+            <time [title]="a.at | date:'medium'">{{ relative(a.at) }}</time>
+          </div>
+          <p *ngIf="!data?.activity?.length" class="muted tiny">Aucune activité récente.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
+<ng-template #sk><div class="val skeleton" style="width:70px;height:30px"></div><div class="foot skeleton" style="width:140px;height:12px"></div></ng-template>

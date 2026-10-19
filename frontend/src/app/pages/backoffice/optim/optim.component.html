@@ -8,20 +8,23 @@
 
 <!-- Étape 1 -->
 <div class="sheet" *ngIf="step === 1">
-  <h1 class="title">Parlez-nous de votre événement</h1>
-  <p class="lede">Quatre informations suffisent pour construire votre jumeau. Tout reste modifiable ensuite.</p>
+  <div class="eyebrow">Simulation budgétaire</div>
+  <h1 class="title">Partez de votre événement</h1>
+  <p class="lede">L’effectif, la durée et le budget sont repris de l’événement choisi. Ajustez-les librement : rien n’est enregistré.</p>
   <div class="setup">
     <div class="card mt-l">
-      <div class="field"><label for="f-name">Nom de l'événement</label>
-        <input class="in" id="f-name" value="Séminaire d'équipe — printemps 2026"></div>
-      <div class="field"><label>Type d'événement</label>
-        <div class="pills" id="f-type">
-          <button class="pill" aria-pressed="true">Séminaire d'équipe</button>
-          <button class="pill">Conférence</button>
-          <button class="pill">Voyage de groupe</button>
-          <button class="pill">Soirée d'entreprise</button>
-          <button class="pill">Convention</button>
-        </div></div>
+      <div class="field">
+        <label for="f-event">Événement de référence</label>
+        <select class="in" id="f-event" [value]="eventId" (change)="useEvent($any($event.target).value)" [disabled]="loadingEvents || !events.length">
+          <option *ngIf="loadingEvents" value="">Chargement…</option>
+          <option *ngIf="!loadingEvents && !events.length" value="">Aucun événement — simulation libre</option>
+          <option *ngFor="let e of events" [value]="e.id">{{ e.name }}</option>
+        </select>
+        <p class="tiny muted" style="margin-top:8px" *ngIf="selectedEvent as e">
+          {{ e.location || 'Lieu à définir' }}<ng-container *ngIf="e.start_date"> · {{ e.start_date | date:'d MMM yyyy' }}</ng-container>
+          · {{ e.registered_count }} inscrit(s)
+        </p>
+      </div>
       <div class="field">
         <div class="range-head"><label for="f-people">Nombre de participants</label><b class="n" id="o-people">{{ S.people }}</b></div>
         <input type="range" id="f-people" min="10" max="400" [value]="S.people" step="5" (input)="onPeopleChange($event)"></div>
@@ -31,7 +34,7 @@
       <div class="field" style="margin-bottom:0">
         <label for="f-budget">Budget disponible <span class="hint">— le plafond à ne pas dépasser</span></label>
         <div class="money"><span>€</span><input class="in" id="f-budget" inputmode="numeric" [value]="S.budget" (input)="onBudgetChange($event)"></div>
-        <p class="tiny muted" style="margin-top:9px">Soit <b class="n" id="o-perhead">{{ eur(S.budget / S.people) }}</b> par participant.</p>
+        <p class="tiny muted" style="margin-top:9px">Soit <b class="n" id="o-perhead">{{ perHead }}</b> par participant.</p>
       </div>
     </div>
     <div class="card mt">
@@ -46,7 +49,7 @@
         <p class="tiny muted" style="margin-top:12px">Un groupe venu pour se retrouver ne juge pas son événement comme un groupe venu apprendre : ce choix change le calcul de la satisfaction.</p>
       </div>
     </div>
-    <button class="btn btn-ai btn-lg mt-l" (click)="goToStep(2)">Construire mon jumeau numérique</button>
+    <button class="btn btn-ai btn-lg mt-l" (click)="goToStep(2)" [disabled]="!S.people">Lancer la simulation</button>
   </div>
 </div>
 
@@ -54,6 +57,7 @@
 <div class="sheet" *ngIf="step === 2">
   <h1 class="title">Faites vos choix, regardez à gauche</h1>
   <p class="lede">Chaque option modifie instantanément le budget et la satisfaction prévue. Rien n'est engagé.</p>
+  <p class="tiny muted" style="margin-top:6px">Coûts unitaires et niveaux de satisfaction : hypothèses indicatives de simulation, appliquées à l’effectif et à la durée de « {{ selectedEvent?.name || 'votre simulation' }} ».</p>
   <div class="opt mt-l">
     <aside class="live">
       <div class="live-top"><span class="dotlive"></span> Jumeau numérique · recalcul en direct</div>

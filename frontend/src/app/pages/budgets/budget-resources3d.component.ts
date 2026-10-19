@@ -79,7 +79,7 @@ import { BudgetItem } from './budget.service';
     .rtotal{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;
       background:var(--ai-soft);border:1px solid var(--line)}
     .rtotal .lab{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx-2)}
-    .rtotal b{font-size:22px;font-family:"Space Grotesk",sans-serif;color:var(--blue)}
+    .rtotal b{font-size:22px;font-family:var(--font-ui);color:var(--blue)}
     .rsrc{align-self:flex-start;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;
       background:rgba(15,169,125,.14);color:var(--gain)}
     .rsrc.est{background:rgba(59,130,246,.14);color:var(--blue)}

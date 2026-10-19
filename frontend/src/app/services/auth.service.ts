@@ -27,12 +27,11 @@ const KEY_EMAIL = 'participant_email';
 /**
  * Interface d'accueil associée à chaque rôle. Le rôle est renvoyé par le
  * serveur à la connexion ; l'utilisateur ne le choisit jamais.
- *  - admin      → tableau de bord Super Administrateur ;
- *  - organizer  → espace Organisateur ;
+ *  - admin, organizer → jumeau numérique 3D (écran d'ouverture) ;
  *  - participant→ espace Participant.
  */
 export const ROLE_HOME: Record<'admin' | 'organizer' | 'participant', string> = {
-  admin: '/app/supervision',
+  admin: '/app/home',
   organizer: '/app/home',
   participant: '/app/profile',
 };

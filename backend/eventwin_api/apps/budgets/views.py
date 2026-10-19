@@ -124,7 +124,7 @@ def _duplicate_groups(items) -> list[dict]:
 
 def _model_name() -> str:
     ai = getattr(settings, 'BUDGET_AI', {})
-    return ai.get('MODEL', getattr(settings, 'OLLAMA_MODEL', 'ollama'))
+    return ai.get('MODEL', getattr(settings, 'GEMINI_MODEL', 'gemini'))
 
 
 def _ai_timeout() -> float:

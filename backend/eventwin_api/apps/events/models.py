@@ -6,14 +6,14 @@ from apps.base_models import UUIDTimestampedModel
 
 class Event(UUIDTimestampedModel):
     EVENT_TYPES = [
-        ('conference', 'Conference'),
-        ('workshop', 'Workshop'),
+        ('conference', 'Conférence'),
+        ('workshop', 'Atelier'),
         ('road_trip', 'Road trip'),
-        ('retreat', 'Retreat'),
+        ('retreat', 'Séminaire / retraite'),
         ('gala', 'Gala'),
-        ('product_launch', 'Product launch'),
-        ('internal_meeting', 'Internal meeting'),
-        ('other', 'Other'),
+        ('product_launch', 'Lancement produit'),
+        ('internal_meeting', 'Réunion interne'),
+        ('other', 'Autre'),
     ]
 
     # Statuts de publication : seuls les événements « published » sont visibles
@@ -26,29 +26,29 @@ class Event(UUIDTimestampedModel):
     ]
 
     EVENT_FORMATS = [
-        ('onsite', 'On-site'),
-        ('hybrid', 'Hybrid'),
-        ('remote', 'Remote'),
-        ('mobile', 'Mobile / road-based'),
-        ('multi_site', 'Multi-site'),
+        ('onsite', 'Sur site'),
+        ('hybrid', 'Hybride'),
+        ('remote', 'À distance'),
+        ('mobile', 'Itinérant'),
+        ('multi_site', 'Multi-sites'),
     ]
 
     AUDIENCE_TYPES = [
-        ('internal', 'Internal'),
-        ('external', 'External'),
-        ('mixed', 'Mixed'),
+        ('internal', 'Interne'),
+        ('external', 'Externe'),
+        ('mixed', 'Mixte'),
     ]
 
     MOBILITY_LEVELS = [
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High'),
+        ('low', 'Faible'),
+        ('medium', 'Moyenne'),
+        ('high', 'Élevée'),
     ]
 
     ACCESSIBILITY_LEVELS = [
         ('standard', 'Standard'),
-        ('enhanced', 'Enhanced'),
-        ('strict', 'Strict'),
+        ('enhanced', 'Renforcée'),
+        ('strict', 'Stricte'),
     ]
 
     organization = models.ForeignKey(

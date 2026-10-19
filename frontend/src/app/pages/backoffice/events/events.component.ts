@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 import { EventContextService } from '../../../twin/event-context.service';
 
 type EventItem = {
@@ -32,19 +31,10 @@ type EventItem = {
   bus_mini_capacity: number;
   bus_vip_count: number;
   bus_vip_capacity: number;
+  registered_count?: number;
   created_at: string;
 };
 
-const GENERATED_ORGANIZATIONS = [
-  { name: 'Atlas Group', legal_name: 'Atlas Group SAS' },
-  { name: 'Northstar Events', legal_name: 'Northstar Events SARL' },
-  { name: 'BluePeak Studio', legal_name: 'BluePeak Studio SAS' },
-  { name: 'Cobalt Partners', legal_name: 'Cobalt Partners SAS' },
-  { name: 'Luma Collective', legal_name: 'Luma Collective SAS' },
-  { name: 'Summit Labs', legal_name: 'Summit Labs SARL' },
-  { name: 'Orchid Projects', legal_name: 'Orchid Projects SAS' },
-  { name: 'Pulse Experience', legal_name: 'Pulse Experience SAS' }
-];
 
 type OrganizationItem = {
   id: string;
@@ -91,40 +81,48 @@ type EventFormStatus = {
 };
 
 const EVENT_TYPES = [
-  { value: 'conference', label: 'Conference' },
-  { value: 'workshop', label: 'Workshop' },
+  { value: 'conference', label: 'Conférence' },
+  { value: 'workshop', label: 'Atelier' },
   { value: 'road_trip', label: 'Road trip' },
-  { value: 'retreat', label: 'Retreat' },
+  { value: 'retreat', label: 'Séminaire / retraite' },
   { value: 'gala', label: 'Gala' },
-  { value: 'product_launch', label: 'Product launch' },
-  { value: 'internal_meeting', label: 'Internal meeting' },
-  { value: 'other', label: 'Other' }
+  { value: 'product_launch', label: 'Lancement produit' },
+  { value: 'internal_meeting', label: 'Réunion interne' },
+  { value: 'other', label: 'Autre' }
+];
+
+// Statuts acceptés par l'API (Event.EVENT_STATUSES).
+const EVENT_STATUSES = [
+  { value: 'draft', label: 'Brouillon' },
+  { value: 'published', label: 'Publié' },
+  { value: 'completed', label: 'Terminé' },
+  { value: 'cancelled', label: 'Annulé' }
 ];
 
 const EVENT_FORMATS = [
-  { value: 'onsite', label: 'On-site' },
-  { value: 'hybrid', label: 'Hybrid' },
-  { value: 'remote', label: 'Remote' },
-  { value: 'mobile', label: 'Mobile / road-based' },
-  { value: 'multi_site', label: 'Multi-site' }
+  { value: 'onsite', label: 'Sur site' },
+  { value: 'hybrid', label: 'Hybride' },
+  { value: 'remote', label: 'À distance' },
+  { value: 'mobile', label: 'Itinérant' },
+  { value: 'multi_site', label: 'Multi-sites' }
 ];
 
 const AUDIENCE_TYPES = [
-  { value: 'internal', label: 'Internal' },
-  { value: 'external', label: 'External' },
-  { value: 'mixed', label: 'Mixed' }
+  { value: 'internal', label: 'Interne' },
+  { value: 'external', label: 'Externe' },
+  { value: 'mixed', label: 'Mixte' }
 ];
 
 const MOBILITY_LEVELS = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' }
+  { value: 'low', label: 'Faible' },
+  { value: 'medium', label: 'Moyenne' },
+  { value: 'high', label: 'Élevée' }
 ];
 
 const ACCESSIBILITY_LEVELS = [
   { value: 'standard', label: 'Standard' },
-  { value: 'enhanced', label: 'Enhanced' },
-  { value: 'strict', label: 'Strict' }
+  { value: 'enhanced', label: 'Renforcée' },
+  { value: 'strict', label: 'Stricte' }
 ];
 
 @Component({
@@ -139,15 +137,15 @@ const ACCESSIBILITY_LEVELS = [
       </div>
       <div class="acts">
         <button class="btn btn-sm" type="button" (click)="refresh()">Rafraîchir</button>
-        <button class="btn btn-ai btn-sm" type="button" (click)="startCreate()">Nouvel événement</button>
+        <button class="btn btn-primary btn-sm" type="button" (click)="startCreate()">Nouvel événement</button>
       </div>
     </div>
 
     <div class="grid g4">
       <div class="stat"><div class="lab">Total</div><div class="val n">{{ filteredEvents.length }}</div><div class="foot">événements affichés</div></div>
       <div class="stat"><div class="lab">Brouillons</div><div class="val n">{{ statusCount('draft') }}</div><div class="foot">encore modifiables</div></div>
-      <div class="stat"><div class="lab">Confirmés</div><div class="val n">{{ statusCount('confirmed') }}</div><div class="foot">prêts pour la simulation</div></div>
-      <div class="stat lit"><div class="lab"><span class="dotlive"></span> Chargés</div><div class="val n">{{ events.length }}</div><div class="foot">depuis l'API</div></div>
+      <div class="stat"><div class="lab">Publiés</div><div class="val n">{{ statusCount('published') }}</div><div class="foot">ouverts aux inscriptions</div></div>
+      <div class="stat lit"><div class="lab"><span class="dotlive"></span> Inscriptions</div><div class="val n">{{ registrationsTotal }}</div><div class="foot">sur les événements affichés</div></div>
     </div>
 
     <div class="card mt">
@@ -159,9 +157,7 @@ const ACCESSIBILITY_LEVELS = [
         <input class="in" type="search" [(ngModel)]="query" placeholder="Chercher un événement, un lieu, un statut" />
         <select class="in" [(ngModel)]="statusFilter">
           <option value="">Tous les statuts</option>
-          <option value="draft">Draft</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="archived">Archived</option>
+          <option *ngFor="let item of eventStatuses" [value]="item.value">{{ item.label }}</option>
         </select>
         <button class="btn" type="button" (click)="clearFilters()">Réinitialiser</button>
       </div>
@@ -200,19 +196,19 @@ const ACCESSIBILITY_LEVELS = [
                   </div>
                 </div>
               </td>
-              <td>{{ event.organization_name || event.organization }}</td>
-              <td>{{ event.event_type }}</td>
+              <td>{{ labelOf(eventTypes, event.event_type) }}</td>
+              <td>{{ event.organization_name || '—' }}</td>
               <td>
-                <div class="n">{{ event.start_date || '—' }}</div>
-                <div class="tiny muted">{{ event.end_date || '—' }}</div>
+                <div class="n">{{ event.start_date ? (event.start_date | date:'d MMM yyyy') : '—' }}</div>
+                <div class="tiny muted" *ngIf="event.end_date && event.end_date !== event.start_date">→ {{ event.end_date | date:'d MMM yyyy' }}</div>
               </td>
               <td>{{ event.location || '—' }}</td>
-              <td class="n">{{ event.participant_expected }} / {{ event.participant_target }}</td>
-              <td class="n">{{ event.target_budget }}</td>
-              <td><span class="chip" [class.gain]="event.status === 'confirmed'" [class.warn]="event.status === 'draft'" [class.risk]="event.status === 'archived'">{{ event.status }}</span></td>
+              <td class="n" title="Inscrits / attendus">{{ event.registered_count ?? 0 }} / {{ event.participant_expected }}</td>
+              <td class="n">{{ +event.target_budget ? (+event.target_budget | number:'1.0-0') + ' €' : '—' }}</td>
+              <td><span class="chip" [class.gain]="event.status === 'published'" [class.warn]="event.status === 'draft'" [class.risk]="event.status === 'cancelled'">{{ labelOf(eventStatuses, event.status) }}</span></td>
               <td>
                 <div class="row-actions">
-                  <button class="btn btn-sm btn-ai" type="button" (click)="openTwin(event)">Jumeau</button>
+                  <button class="btn btn-sm btn-primary" type="button" (click)="openTwin(event)">Jumeau 3D</button>
                   <button class="btn btn-sm" type="button" (click)="startEdit(event)">Modifier</button>
                   <button class="btn btn-sm btn-danger" type="button" (click)="remove(event)">Supprimer</button>
                 </div>
@@ -247,7 +243,7 @@ const ACCESSIBILITY_LEVELS = [
             <div class="field">
               <label>Organisation</label>
               <select class="in" name="organization" [(ngModel)]="form.organization" required>
-                <option value="">Sélectionnez une organisation</option>
+                <option value="">{{ organizations.length ? 'Sélectionnez une organisation' : 'Aucune organisation disponible' }}</option>
                 <option *ngFor="let organization of organizations" [value]="organization.id">
                   {{ organization.name }}
                 </option>
@@ -272,9 +268,7 @@ const ACCESSIBILITY_LEVELS = [
             <div class="field">
               <label>Statut de préparation</label>
               <select class="in" name="status" [(ngModel)]="form.status">
-                <option value="draft">draft</option>
-                <option value="confirmed">confirmed</option>
-                <option value="archived">archived</option>
+                <option *ngFor="let item of eventStatuses" [value]="item.value">{{ item.label }}</option>
               </select>
             </div>
             <div class="field">
@@ -428,10 +422,10 @@ const ACCESSIBILITY_LEVELS = [
           </div>
 
           <div class="field">
-            <label>Accommodation required</label>
+            <label>Hébergement requis</label>
             <select class="in" name="accommodation_required" [(ngModel)]="form.accommodation_required">
-              <option [ngValue]="false">No</option>
-              <option [ngValue]="true">Yes</option>
+              <option [ngValue]="false">Non</option>
+              <option [ngValue]="true">Oui</option>
             </select>
           </div>
 
@@ -484,6 +478,7 @@ export class EventsComponent implements OnInit {
   events: EventItem[] = [];
   organizations: OrganizationItem[] = [];
   eventTypes = EVENT_TYPES;
+  eventStatuses = EVENT_STATUSES;
   eventFormats = EVENT_FORMATS;
   audienceTypes = AUDIENCE_TYPES;
   mobilityLevels = MOBILITY_LEVELS;
@@ -620,16 +615,12 @@ export class EventsComponent implements OnInit {
     this.loadingOrganizations = true;
     this.http.get<OrganizationItem[]>('/api/organizations/').subscribe({
       next: (organizations) => {
-        if (organizations.length > 0) {
-          this.organizations = organizations;
-          if (!this.form.organization) {
-            this.form.organization = organizations[0].id;
-          }
-          this.loadingOrganizations = false;
-          return;
+        // Organisations réelles uniquement : aucune n'est inventée côté client.
+        this.organizations = organizations;
+        if (!this.form.organization && organizations.length) {
+          this.form.organization = organizations[0].id;
         }
-
-        this.seedGeneratedOrganizations();
+        this.loadingOrganizations = false;
       },
       error: () => {
         this.organizations = [];
@@ -733,6 +724,14 @@ export class EventsComponent implements OnInit {
     });
   }
 
+  labelOf(list: { value: string; label: string }[], value: string): string {
+    return list.find(item => item.value === value)?.label ?? value;
+  }
+
+  get registrationsTotal(): number {
+    return this.filteredEvents.reduce((sum, e) => sum + (e.registered_count ?? 0), 0);
+  }
+
   initials(name: string): string {
     return name
       .split(' ')
@@ -768,21 +767,5 @@ export class EventsComponent implements OnInit {
       bus_vip_count: 0,
       bus_vip_capacity: 20
     };
-  }
-
-  private async seedGeneratedOrganizations(): Promise<void> {
-    try {
-      const createdOrganizations = [] as OrganizationItem[];
-
-      for (const organization of GENERATED_ORGANIZATIONS) {
-        const created = await firstValueFrom(this.http.post<OrganizationItem>('/api/organizations/', organization));
-        createdOrganizations.push(created);
-      }
-
-      this.organizations = createdOrganizations;
-      this.form.organization = createdOrganizations[0]?.id || '';
-    } finally {
-      this.loadingOrganizations = false;
-    }
   }
 }

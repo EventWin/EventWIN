@@ -16,12 +16,13 @@ import { AuthService, AuthState } from '../../services/auth.service';
   <aside class="side">
     <div class="logo">
       <div class="mark"></div>
-      <div>Event<em>Twin</em><div class="tiny" style="color:var(--tx-3);margin-top:-3px;font-family:Inter">{{ roleLabel }}</div></div>
+      <div>Event<em>Twin</em><div class="role-label">{{ roleLabel }}</div></div>
     </div>
 
-    <a class="nav" routerLink="/app/home" routerLinkActive="active">
+    <div class="nav-group" *ngIf="isOrganizer">Pilotage</div>
+    <a class="nav" *ngIf="isOrganizer" routerLink="/app/home" routerLinkActive="active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.2"/></svg>
-      Jumeau numérique
+      Jumeau numérique 3D
     </a>
     <a class="nav" *ngIf="isOrganizer" routerLink="/app/supervision" routerLinkActive="active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
@@ -33,7 +34,7 @@ import { AuthService, AuthState } from '../../services/auth.service';
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
       Événements
     </a>
-    <a class="nav" *ngIf="isAdmin" routerLink="/app/participants" routerLinkActive="active">
+    <a class="nav" *ngIf="isOrganizer" routerLink="/app/participants" routerLinkActive="active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5.5A3 3 0 0 1 16 11M18 19.5c0-2.4-1-4.2-2.6-5.2"/></svg>
       Participants
     </a>
@@ -44,6 +45,10 @@ import { AuthService, AuthState } from '../../services/auth.service';
     <a class="nav" *ngIf="isOrganizer" routerLink="/app/optim" routerLinkActive="active">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7z"/><path d="M18 17l.9 2.4L21 20l-2.1.7L18 23l-.9-2.3L15 20l2.1-.6z"/></svg>
       Optimiser <span class="tag">IA</span>
+    </a>
+    <a class="nav" *ngIf="isOrganizer" routerLink="/app/fit" routerLinkActive="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="8" r="3"/><path d="M2.5 19c0-3 2.5-5 5.5-5"/><rect x="13" y="4" width="8" height="7" rx="2"/><rect x="13" y="13" width="8" height="7" rx="2"/><path d="M10.5 12.5l2.5-1M10.5 15l2.5 1.5"/></svg>
+      Adéquation <span class="tag">IA</span>
     </a>
 
     <ng-container *ngIf="isAdmin">

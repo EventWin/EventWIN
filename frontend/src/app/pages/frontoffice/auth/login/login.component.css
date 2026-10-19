@@ -1,12 +1,9 @@
-/* Mascotte de la colonne narrative : fluide et sans débordement. */
-.login-mascot {
-  width: 320px;
-  max-width: 100%;
-  height: auto;
-}
+.login-twin { display: grid; gap: 8px; justify-items: center; }
+.login-canvas { display: block; width: 100%; height: clamp(240px, 38vh, 380px); }
+.login-twin small { font-size: 11.5px; color: var(--tx-3); }
 
-@media (max-width: 900px) {
-  .login-mascot {
-    width: 220px;
-  }
-}
+.pass { position: relative; }
+.pass .in { padding-right: 84px; }
+.pass-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); padding: 5px 9px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; color: var(--tx-2); }
+.pass-toggle:hover { background: var(--sub); color: var(--tx); }

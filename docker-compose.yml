@@ -21,6 +21,7 @@ services:
     env_file:
       - ./backend/eventwin_api/.env.example
     environment:
+      DOTENV_OVERRIDE: 'false'
       DB_HOST: db
       DB_PORT: 5432
       ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0

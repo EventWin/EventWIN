@@ -15,7 +15,7 @@ import {
   fmtEur,
   isTransportEvent
 } from '../../../twin/twin-analysis';
-import { TwinDataService } from '../../../twin/twin-data.service';
+import { EventFitPayload, TwinDataService } from '../../../twin/twin-data.service';
 import { CameraPreset, LayerKey, SceneSelection, TwinScene, fitColor } from '../../../twin/twin-scene';
 import {
   ApiEvent,
@@ -43,6 +43,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Brouillon',
+  published: 'Publié',
   planned: 'Planifié',
   active: 'Actif',
   confirmed: 'Confirmé',
@@ -88,6 +89,11 @@ export class TwinHomeComponent implements OnInit, AfterViewInit, OnDestroy {
   scenarioModel: TwinModel | null = null;
   twinLoading = false;
   twinError = '';
+
+  // Adéquation Gemini (cache serveur) des inscrits de l'événement affiché.
+  aiFit: EventFitPayload | null = null;
+  aiBusy = false;
+  aiError = '';
 
   layers: Record<LayerKey, boolean> = { participants: true, structure: true, route: true, resources: true, risks: true };
   selection: SceneSelection | null = null;
@@ -212,6 +218,7 @@ export class TwinHomeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.source = source;
         this.twinLoading = false;
         this.recompute(true, resetCamera);
+        this.loadAiFit(event.id);
       },
       error: () => {
         this.twinLoading = false;
@@ -223,7 +230,7 @@ export class TwinHomeComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Rebuilds the baseline (and scenario) models from the loaded source. */
   recompute(resetParams = false, resetCamera = false): void {
     if (!this.source) return;
-    this.baseline = buildTwin(this.source, this.weights);
+    this.baseline = buildTwin(this.source, this.weights, undefined, this.aiFit?.results);
     if (resetParams || !this.params) this.params = baselineParams(this.source, this.baseline.venue);
     this.updateScenario();
     // The viewport only exists once the template has rendered the ready state.
@@ -401,9 +408,77 @@ export class TwinHomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.renderScene(false);
   }
 
+  // ---- adéquation Gemini ---------------------------------------------------------
+
+  /** Relit les résultats Gemini en cache (instantané, sans appel IA). */
+  private loadAiFit(eventId: string): void {
+    this.aiError = '';
+    this.data.getEventFit(eventId).subscribe({
+      next: (payload) => {
+        if (this.event?.id !== eventId) return;
+        this.aiFit = payload;
+        this.recompute(false, false);
+      },
+      error: () => { this.aiFit = null; }
+    });
+  }
+
+  /** Lance Gemini sur les inscrits sans évaluation (ou tous si ``refresh``). */
+  runAiFit(refresh = false): void {
+    if (!this.event || this.aiBusy) return;
+    const eventId = this.event.id;
+    this.aiBusy = true;
+    this.aiError = '';
+    this.data.analyzeEventFit(eventId, refresh).subscribe({
+      next: (payload) => {
+        this.aiBusy = false;
+        if (this.event?.id !== eventId) return;
+        this.aiFit = payload;
+        if (payload.errors?.length) {
+          this.aiError = `${payload.errors.length} participant(s) non évalué(s) : ${payload.errors[0].message}`;
+        }
+        this.recompute(false, false);
+      },
+      error: (err) => {
+        this.aiBusy = false;
+        this.aiError = err?.error?.error || 'Gemini est indisponible pour le moment.';
+      }
+    });
+  }
+
+  get aiScoredCount(): number {
+    return this.aiFit ? Object.keys(this.aiFit.results).length : 0;
+  }
+
+  get aiMissingCount(): number {
+    return this.aiFit?.missing.length ?? 0;
+  }
+
+  get scoringLabel(): string {
+    const total = this.displayed?.attendees.length ?? 0;
+    if (!total) return `${this.engineLabel} — aucun inscrit`;
+    if (!this.aiScoredCount) return `${this.engineLabel} — Gemini pas encore lancé`;
+    return this.aiScoredCount >= total
+      ? `Adéquation évaluée par Gemini (${total}/${total})`
+      : `Gemini ${this.aiScoredCount}/${total} · règles pour les autres`;
+  }
+
+  readonly dimensionLabels: Record<string, string> = {
+    accessibility: 'Accessibilité', diet: 'Alimentation', mobility: 'Mobilité', budget: 'Budget',
+    schedule: 'Rythme', interests: 'Intérêts', ambiance: 'Ambiance', language: 'Langue'
+  };
+
+  aiDimensions(a: Attendee): { key: string; label: string; score: number; note: string }[] {
+    const dims = a.fit.ai?.dimensions ?? {};
+    return Object.entries(dims)
+      .filter(([, d]) => d.score !== null)
+      .map(([key, d]) => ({ key, label: this.dimensionLabels[key] ?? key, score: d.score as number, note: d.note }))
+      .sort((x, y) => x.score - y.score);
+  }
+
   private updateScenario(): void {
     if (!this.source || !this.baseline || !this.params) return;
-    this.scenarioModel = buildTwin(this.source, this.weights, this.params);
+    this.scenarioModel = buildTwin(this.source, this.weights, this.params, this.aiFit?.results);
     this.metrics = compareScenario(this.baseline, this.scenarioModel);
   }
 

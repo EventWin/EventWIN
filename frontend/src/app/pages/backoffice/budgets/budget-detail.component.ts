@@ -38,10 +38,12 @@ interface ResourceRow {
   warn?: string;
 }
 
-interface ConstraintAgg {
-  value: string;
-  count: number;
-  isHard: boolean;
+/** Besoins des participants inscrits, regroupés par type de contrainte. */
+interface ConstraintGroup {
+  type: string;
+  people: number;
+  hard: boolean;
+  values: { value: string; count: number; hard: boolean }[];
 }
 
 /** Nombre maximal de lignes dans l'éditeur de ressources. */
@@ -56,7 +58,7 @@ const MAX_ROWS = 20;
  * toast), mais habillée avec les **variables de couleur, les polices et le
  * thème de l'application** (`--paper`, `--sub`, `--card`, `--line`, `--line-2`,
  * `--tx`, `--tx-2`, `--tx-3`, `--violet`, `--blue`, `--gain`, `--warn`,
- * `--risk`, `--ai`, Inter + Space Grotesk). Aucune variable de couleur nouvelle
+ * `--risk`, `--ai`, Plus Jakarta Sans + Fraunces). Aucune variable de couleur nouvelle
  * n'est créée. L'avatar est rendu par `BudgetAvatarHeadComponent` (bibliothèque
  * TalkingHead, MIT) et retombe sur l'ancien avatar SVG si la 3D est
  * indisponible.
@@ -94,114 +96,165 @@ const MAX_ROWS = 20;
   imports: [CommonModule, FormsModule, RouterLink, BudgetAvatarHeadComponent],
   template: `
     <!-- ================= Chargement / erreur ================= -->
-    <div class="panel msg" *ngIf="load === 'loading'">Chargement du budget…</div>
-    <div class="panel msg" *ngIf="load === 'error'">
-      <strong>{{ loadError || 'Impossible de charger le budget.' }}</strong>
-      <small *ngIf="eventId">Identifiant événement : {{ eventId }}</small>
-      <button class="ghost" type="button" routerLink="/app/budgets">Retour aux budgets</button>
+    <div class="card state-card" *ngIf="load === 'loading'">
+      <div class="skeleton" style="height:22px;width:40%"></div>
+      <div class="skeleton" style="height:260px"></div>
+    </div>
+    <div class="card state-card err" *ngIf="load === 'error'">
+      <h3>{{ loadError || 'Impossible de charger le budget.' }}</h3>
+      <small *ngIf="eventId" class="mut">Identifiant événement : {{ eventId }}</small>
+      <a class="btn btn-sm" routerLink="/app/budgets">Retour aux budgets</a>
     </div>
 
     <ng-container *ngIf="load === 'ok' && summary">
-      <!-- ================= Barre supérieure ================= -->
-      <div class="hdr">
-        <div class="brand"><i></i>Budget de l’événement</div>
-
-        <input class="ro ev" [value]="summary.event.name" readonly
-          aria-label="Nom de l’événement" [title]="summary.event.name">
-        <input class="ro bud n" [value]="budgetLabel" readonly
-          aria-label="Budget maximal" title="Budget maximal issu de la fiche événement">
-
-        <span class="meta">
-          {{ summary.event.event_type_label }}
-          <ng-container *ngIf="summary.event.location">· {{ summary.event.location }}</ng-container>
-          · {{ summary.event.participants }} participants
-        </span>
-
-        <div class="fill"></div>
-
-        <span class="st"
-          [class.ok]="aiState === 'ok' && !over"
-          [class.ko]="(aiState === 'ok' && over) || aiState === 'unavailable'"
-          [class.wait]="aiState === 'thinking'">
-          {{ aiState === 'thinking' ? 'Analyse…'
-             : aiState === 'unavailable' ? 'IA indisponible'
-             : aiState === 'ok' ? (over ? 'Dépassement' : 'Budget respecté')
-             : 'En attente d’analyse' }}
-        </span>
-        <button class="ghost" type="button" routerLink="/app/budgets">← Tous les budgets</button>
-      </div>
+      <!-- ================= En-tête ================= -->
+      <header class="bhead">
+        <div class="bhead-main">
+          <a class="back" routerLink="/app/budgets">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            Tous les budgets
+          </a>
+          <h1 class="title" [title]="summary.event.name">{{ summary.event.name }}</h1>
+          <div class="meta">
+            <span>{{ summary.event.event_type_label }}</span>
+            <span *ngIf="summary.event.location">{{ summary.event.location }}</span>
+            <span>{{ summary.event.participants }} participants attendus</span>
+          </div>
+        </div>
+        <div class="bhead-side">
+          <span class="st"
+            [class.ok]="aiState === 'ok' && !over"
+            [class.ko]="(aiState === 'ok' && over) || aiState === 'unavailable'"
+            [class.wait]="aiState === 'thinking'">
+            <i></i>
+            {{ aiState === 'thinking' ? 'Analyse en cours'
+               : aiState === 'unavailable' ? 'IA indisponible'
+               : aiState === 'ok' ? (over ? 'Dépassement' : 'Budget respecté')
+               : 'En attente d’analyse' }}
+          </span>
+          <button class="btn btn-ai" type="button" (click)="runAnalysis()"
+            [disabled]="busy || (!activeRows.length && !hasPendingDelete)">
+            <span class="spin" *ngIf="busy" aria-hidden="true"></span>
+            <svg *ngIf="!busy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7z"/></svg>
+            {{ busy ? 'Analyse en cours…' : 'Lancer l’analyse IA' }}
+          </button>
+        </div>
+      </header>
 
       <!-- ================= Zone principale ================= -->
       <div class="layout">
-        <!-- Avatar (talking head 3D Ready Player Me) -->
-        <div class="panel avatar" [class.busy]="busy">
-          <div class="bubble">{{ assistantLine }}</div>
-          <app-budget-avatar-head [mood]="avatarMood"></app-budget-avatar-head>
-        </div>
+        <!-- Assistant 3D (TalkingHead) -->
+        <section class="card avatar" [class.busy]="busy" aria-label="Assistant budget">
+          <div class="card-top">
+            <h3>Assistant budget</h3>
+            <span class="presence" [class.on]="busy">{{ busy ? 'réfléchit…' : 'en ligne' }}</span>
+          </div>
+          <div class="avatar-stage">
+            <app-budget-avatar-head [mood]="avatarMood"></app-budget-avatar-head>
+          </div>
+          <div class="bubble" role="status" aria-live="polite">{{ assistantLine }}</div>
+        </section>
 
         <!-- Portefeuille 3D -->
-        <div class="panel wstage" (mousemove)="onTilt($event)" (mouseleave)="resetTilt()">
-          <div class="wallet" [class.go]="busy" [style.transform]="tilt">
-            <div class="body">
-              <div class="lbl">Budget de l’événement</div>
-              <div class="wamt n">{{ budgetLabel }}</div>
-              <div>
-                <div class="wname" [title]="summary.event.name">{{ summary.event.name }}</div>
-                <div class="chips">
-                  <span class="wchip" *ngFor="let c of walletChips">{{ c }}</span>
+        <section class="card wcard" aria-label="Budget de l’événement">
+          <div class="card-top">
+            <h3>Budget de l’événement</h3>
+            <span class="hint">issu de la fiche événement</span>
+          </div>
+          <div class="wstage" (mousemove)="onTilt($event)" (mouseleave)="resetTilt()">
+            <div class="wallet" [class.go]="busy" [style.transform]="tilt">
+              <div class="body">
+                <div class="lbl">Budget maximal</div>
+                <div class="wamt n">{{ budgetLabel }}</div>
+                <div>
+                  <div class="wname" [title]="summary.event.name">{{ summary.event.name }}</div>
+                  <div class="chips">
+                    <span class="wchip" *ngFor="let c of walletChips">{{ c }}</span>
+                  </div>
                 </div>
               </div>
+              <div class="flap"></div>
             </div>
-            <div class="flap"></div>
+            <div class="coins" *ngIf="busy" aria-hidden="true">
+              <i *ngFor="let c of coinsArr" [style.--x]="c.x" [style.animation-delay]="c.d"></i>
+            </div>
           </div>
-          <div class="coins" *ngIf="busy" aria-hidden="true">
-            <i *ngFor="let c of coinsArr" [style.--x]="c.x" [style.animation-delay]="c.d"></i>
+          <div class="wkpis">
+            <div>
+              <span>Coût estimé</span>
+              <b class="n">{{ aiState !== 'thinking' && pricedCount > 0 ? ((displayTotal | number:'1.0-0') + ' €') : '—' }}</b>
+            </div>
+            <div>
+              <span>{{ remainingValue != null && remainingValue < 0 ? 'Dépassement' : 'Reste' }}</span>
+              <b class="n" [class.neg]="remainingValue != null && remainingValue < 0">{{ remainingLabel }}</b>
+            </div>
+            <div>
+              <span>Postes saisis</span>
+              <b class="n">{{ activeRows.length }}</b>
+            </div>
           </div>
-        </div>
+        </section>
 
         <!-- Ressources -->
-        <div class="panel res">
-          <h3>Ressources de l’événement</h3>
+        <section class="card res" aria-label="Ressources de l’événement">
+          <div class="card-top">
+            <h3>Ressources</h3>
+            <span class="hint">nom, quantité, description — l’IA chiffre</span>
+          </div>
+          <div class="rhead" aria-hidden="true"><span>Ressource</span><span>Qté</span><span>Description</span><span></span></div>
           <div class="rl">
             <div class="row" *ngFor="let r of rows; let i = index" [class.warn]="r.warn">
-              <input class="nm" [class.warn]="r.warn" [(ngModel)]="r.name"
+              <input class="in nm" [class.warn]="r.warn" [(ngModel)]="r.name"
                 (ngModelChange)="onNameChange(r)"
-                placeholder="Ressource (ex : sono)" aria-label="Nom de la ressource">
-              <input class="q" type="number" min="1" step="1" [(ngModel)]="r.quantity"
-                placeholder="Qté" aria-label="Quantité">
-              <input class="d" [(ngModel)]="r.description"
-                placeholder="Description (facultatif)" aria-label="Description">
+                placeholder="ex. Sonorisation" aria-label="Nom de la ressource" [title]="r.name || ''">
+              <input class="in q" type="number" min="1" step="1" [(ngModel)]="r.quantity"
+                placeholder="1" aria-label="Quantité">
+              <input class="in d" [(ngModel)]="r.description"
+                placeholder="Facultatif" aria-label="Description" [title]="r.description || ''">
               <button class="del" type="button" title="Supprimer la ligne"
-                aria-label="Supprimer la ligne" (click)="removeRow(i)">✕</button>
+                aria-label="Supprimer la ligne" (click)="removeRow(i)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
               <p class="rerr" *ngIf="r.warn">{{ r.warn }}</p>
             </div>
           </div>
+        </section>
+      </div>
 
-          <div class="cons" *ngIf="constraints.length">
-            <span class="lbl">Contraintes</span>
-            <span class="cc" *ngFor="let c of constraints" [class.hard]="c.isHard">
-              {{ c.value }} · {{ c.count }}
-            </span>
-          </div>
+      <!-- ================= Besoins des participants ================= -->
+      <section class="card needs" aria-label="Besoins des participants inscrits">
+        <div class="card-top">
+          <h3>Besoins des participants inscrits</h3>
+          <span class="hint">{{ registeredCount }} inscrit(s) · à prévoir dans les ressources</span>
         </div>
-      </div>
-
-      <!-- ================= Bouton unique ================= -->
-      <div class="btnrow">
-        <button class="go" type="button" (click)="runAnalysis()"
-          [disabled]="busy || (!activeRows.length && !hasPendingDelete)">
-          <span class="spin" *ngIf="busy" aria-hidden="true"></span>
-          {{ busy ? 'Analyse en cours…' : '✨ Analyse IA' }}
-        </button>
-      </div>
+        <div class="needs-grid" *ngIf="constraints.length; else noNeeds">
+          <article class="need" *ngFor="let g of constraints" [class.hard]="g.hard">
+            <div class="need-head">
+              <b>{{ g.type }}</b>
+              <span class="tag" *ngIf="g.hard">Impératif</span>
+            </div>
+            <small class="count n">{{ g.people }} participant{{ g.people > 1 ? 's' : '' }} concerné{{ g.people > 1 ? 's' : '' }}</small>
+            <ul>
+              <li *ngFor="let v of g.values" [class.soft]="!v.hard" [title]="v.hard ? 'Contrainte stricte' : 'Contrainte souple'">
+                <i aria-hidden="true"></i>
+                <span>{{ v.value }}</span>
+                <small *ngIf="v.count > 1" class="n">× {{ v.count }}</small>
+              </li>
+            </ul>
+          </article>
+        </div>
+        <ng-template #noNeeds>
+          <p class="mut mini">{{ registeredCount ? 'Aucune contrainte déclarée par les participants inscrits.' : 'Aucun participant inscrit pour l’instant.' }}</p>
+        </ng-template>
+      </section>
 
       <!-- ================= Résultats ================= -->
-      <div class="panel bout" *ngIf="aiState !== 'idle'">
-        <div class="bempty" *ngIf="aiState === 'thinking'">⏳ L’IA analyse ton événement…</div>
+      <section class="card bout" *ngIf="aiState !== 'idle'" aria-label="Résultats de l’analyse">
+        <div class="bempty" *ngIf="aiState === 'thinking'"><span class="spin dark"></span> L’IA analyse votre événement : compréhension, recherche de fournisseurs, calcul…</div>
 
         <div class="bempty" *ngIf="aiState === 'unavailable'">
           <span>
-            ⚠️ {{ aiError }}<br>
+            <b>{{ aiError }}</b><br>
             <small class="mut">Vos ressources sont enregistrées. Aucun résultat n’est simulé —
               relancez l’analyse dès que l’assistant est disponible.</small>
           </span>
@@ -209,7 +262,7 @@ const MAX_ROWS = 20;
 
         <ng-container *ngIf="aiState === 'ok' && analysis">
           <!-- Colonne 1 : ressources comprises & prix estimés -->
-          <div class="rcol">
+          <div class="rcol c-res">
             <h3>Ressources &amp; prix estimés</h3>
 
             <p class="mini mut" *ngIf="!understoodItems.length">
@@ -218,7 +271,7 @@ const MAX_ROWS = 20;
             </p>
 
             <div class="it" *ngFor="let it of understoodItems">
-              <div><b>{{ it.name }}</b> <small>× {{ it.quantity }}</small></div>
+              <div><b>{{ it.name }}</b> <small>× {{ it.quantity | number:'1.0-2' }}</small></div>
 
               <!-- Cas « comprise mais non chiffrée » : on affiche un tiret et
                    surtout jamais 0 €, qui se lirait « gratuit ». -->
@@ -248,7 +301,7 @@ const MAX_ROWS = 20;
               <div class="lnk" *ngIf="it.product_url">
                 <a class="offr" [href]="it.product_url" target="_blank" rel="noopener noreferrer"
                   [title]="it.offer_title || it.product_url">
-                  🛒 {{ it.offer_domain || it.provider || 'Voir la page produit' }}
+                  {{ it.offer_domain || it.provider || 'Voir la page produit' }} ↗
                 </a>
                 <small *ngIf="it.offer_title">{{ it.offer_title }}</small>
                 <small *ngIf="it.offer_price != null">
@@ -278,7 +331,7 @@ const MAX_ROWS = 20;
               <p class="mini">Aucun montant n’a été inventé. Les lignes ci-dessous ne pèsent pas dans le total —
                 consultez la page du fournisseur pour le tarif.</p>
               <div class="urow" *ngFor="let it of unpriced">
-                <span><b>{{ it.name }}</b> <small>× {{ it.quantity }}</small></span>
+                <span><b>{{ it.name }}</b> <small>× {{ it.quantity | number:'1.0-2' }}</small></span>
                 <span class="mut">{{ it.reason }}</span>
               </div>
             </div>
@@ -290,7 +343,7 @@ const MAX_ROWS = 20;
                 L’analyse ne les fusionne pas : si c’est un doublon de saisie, corrigez ou
                 supprimez-en une dans « Ressources de l’événement », puis relancez l’analyse.</p>
               <div class="urow" *ngFor="let d of duplicates">
-                <span><b>{{ d.name }}</b> <small>× {{ d.quantity }}</small></span>
+                <span><b>{{ d.name }}</b> <small>× {{ d.quantity | number:'1.0-2' }}</small></span>
                 <span class="mut">{{ d.count }} lignes identiques</span>
               </div>
             </div>
@@ -298,7 +351,7 @@ const MAX_ROWS = 20;
           </div>
 
           <!-- Colonne 2 : budget total -->
-          <div class="rcol">
+          <div class="rcol c-tot">
             <h3>Budget total estimé</h3>
             <div class="tot n" *ngIf="pricedCount > 0">{{ displayTotal | number:'1.2-2' }} €</div>
             <div class="tot none" *ngIf="pricedCount === 0">Aucun poste chiffré</div>
@@ -312,7 +365,7 @@ const MAX_ROWS = 20;
             <span class="badge" *ngIf="!budgetAvailable">Budget non défini</span>
             <p class="sum" *ngIf="analysis.summary">{{ analysis.summary }}</p>
 
-            <div class="kv"><span>Budget maximal</span><b class="n">{{ budgetLabel }}</b></div>
+            <div class="kv" *ngIf="!(figures && pricedCount > 0)"><span>Budget maximal</span><b class="n">{{ budgetLabel }}</b></div>
             <div class="kv"><span>Ressources comprises</span><b class="n">{{ understoodItems.length }}</b></div>
             <div class="kv" *ngIf="unpriced.length"><span>Compris, non chiffrés</span><b class="n">{{ unpriced.length }}</b></div>
             <div class="kv" *ngIf="ambiguous.length">
@@ -358,7 +411,7 @@ const MAX_ROWS = 20;
           </div>
 
           <!-- Colonne 3 : conseils -->
-          <div class="rcol">
+          <div class="rcol c-adv">
             <h3>{{ analysis.analysis_mode === 'optimization' ? 'Optimisation du budget' : 'Améliorations de l’événement' }}</h3>
 
             <!-- Budget respecté : améliorations -->
@@ -438,7 +491,7 @@ const MAX_ROWS = 20;
           </div>
 
           <!-- Colonne 4 : ressources écartées de l'analyse -->
-          <div class="rcol">
+          <div class="rcol c-amb">
             <h3>Ressources ambiguës</h3>
 
             <p class="ambnone" *ngIf="!ambiguous.length">
@@ -455,7 +508,7 @@ const MAX_ROWS = 20;
               <div class="ambrow" *ngFor="let a of ambiguous">
                 <div class="top">
                   <b>{{ a.name }}</b>
-                  <span class="qty n">× {{ a.quantity }}</span>
+                  <span class="qty n">× {{ a.quantity | number:'1.0-2' }}</span>
                 </div>
                 <p>{{ a.reason }}</p>
                 <p class="fix">Reformulez ce nom dans « Ressources de l’événement »,
@@ -464,7 +517,7 @@ const MAX_ROWS = 20;
             </div>
           </div>
         </ng-container>
-      </div>
+      </section>
     </ng-container>
 
     <!-- ================= Toast ================= -->
@@ -474,218 +527,231 @@ const MAX_ROWS = 20;
     </div>
   `,
   styles: [`
-    /* =========================================================
-       Habillage : maquette « wallet IA » + variables de l'app.
-       Aucune variable de couleur nouvelle n'est créée : on
-       réutilise --paper --sub --card --line --line-2 --tx
-       --tx-2 --tx-3 --violet --blue --gain --warn --risk --ai.
-       Classes préfixées et @keyframes bw* : isolation garantie
-       vis-à-vis des styles globaux de l'application.
-       ========================================================= */
-    :host{
-      display:flex;flex-direction:column;gap:10px;
-      flex:1;min-width:0;min-height:0;overflow:auto;color:var(--tx);
-    }
-    .fill{flex:1}
+    /* Page « Budget de l'événement » — alignée sur le système visuel de
+       l'application (cartes, jetons de couleur, typographies globales).
+       Classes locales et @keyframes préfixés bw* : pas de collision avec
+       les styles globaux. */
+    :host{display:block;color:var(--tx)}
     .mut{color:var(--tx-2)}
     .mini{font-size:12px}
     .pos{color:var(--gain)}
-    .n{font-family:"Space Grotesk",sans-serif;font-variant-numeric:tabular-nums}
-    .panel{background:var(--card);border:1px solid var(--line);border-radius:16px}
-    .msg{padding:18px;text-align:center;color:var(--tx-2);display:flex;gap:12px;
-      align-items:center;justify-content:center;flex-wrap:wrap}
+    .n{font-variant-numeric:tabular-nums}
+    .card{padding:18px 20px}
+    .state-card{display:grid;gap:14px}
+    .state-card.err{justify-items:start}
+    .card-top{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+    .card-top h3{font-size:14.5px;font-weight:700}
+    .hint{font-size:12px;color:var(--tx-3)}
 
-    /* ---------- Barre supérieure ---------- */
-    .hdr{display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex:0 0 auto}
-    .brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk",sans-serif;
-      font-weight:600;font-size:17px;letter-spacing:-.025em;margin-right:6px;white-space:nowrap}
-    .brand i{width:30px;height:30px;border-radius:9px;background:var(--ai);
-      box-shadow:var(--sh-ai);flex:none}
-    .hdr input{background:var(--card);border:1px solid var(--line-2);color:var(--tx);
-      border-radius:10px;padding:9px 11px;font:inherit;font-size:14px;outline:none;min-width:0}
-    .hdr input.ro{background:var(--sub);color:var(--tx-2);cursor:default}
-    .hdr input.ro.ev{flex:1 1 260px}
-    .hdr input.ro.bud{flex:0 0 150px;font-size:16px;font-weight:600;color:var(--tx);text-align:center}
-    .meta{font-size:12.5px;color:var(--tx-3);white-space:nowrap}
-    .st{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;
-      font-size:12px;font-weight:600;background:var(--sub);color:var(--tx-2);flex:none}
-    .st.ok{background:rgba(15,169,125,.12);color:var(--gain)}
-    .st.ko{background:rgba(232,69,95,.12);color:var(--risk)}
-    .st.wait{background:var(--ai-soft);color:var(--violet)}
-    .ghost{border:1px solid var(--line-2);background:var(--card);color:var(--tx-2);
-      border-radius:11px;padding:8px 14px;font-size:13px;cursor:pointer;flex:none;
-      transition:background .2s,color .2s}
-    .ghost:hover{background:var(--sub);color:var(--tx)}
-    .ghost.sm{padding:6px 11px;font-size:12px;margin-top:6px}
-
-    /* ---------- Zone principale ---------- */
-    .layout{display:grid;grid-template-columns:clamp(300px,27vw,440px) 1fr clamp(320px,26vw,380px);gap:14px;
-      height:clamp(320px,48vh,540px);min-height:300px;flex:0 0 auto}
-
-    /* Avatar (talking head 3D) */
-    .avatar{display:flex;flex-direction:column;align-items:stretch;gap:6px;
-      padding:8px;position:relative;overflow:hidden}
-    .bubble{position:relative;flex:0 0 auto;max-height:5.5em;overflow:auto;
-      background:var(--card);color:var(--tx);
-      border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.3}
-    .bubble:after{content:"";position:absolute;bottom:-7px;left:50%;margin-left:-7px;
-      border:7px solid transparent;border-top-color:var(--card);border-bottom:0}
-
-    /* Portefeuille 3D */
-    .wstage{display:flex;align-items:center;justify-content:center;perspective:900px;
-      position:relative;overflow:hidden}
-    .wstage:before{content:"";position:absolute;bottom:14%;width:60%;height:26px;
-      background:radial-gradient(ellipse,rgba(15,169,125,.28),transparent 70%);filter:blur(6px)}
-    .wallet{width:min(360px,82%);aspect-ratio:1.7;position:relative;transform-style:preserve-3d;
-      transition:transform .15s;animation:bwIdle 6s ease-in-out infinite}
-    @keyframes bwIdle{50%{translate:0 -8px}}
-    .body,.flap{position:absolute;inset:0;border-radius:18px}
-    .body{background:var(--ai);padding:16px 18px;display:flex;flex-direction:column;
-      justify-content:space-between;transform:translateZ(0);
-      box-shadow:0 30px 50px -22px rgba(22,26,46,.5),inset 0 0 0 1px rgba(255,255,255,.2)}
-    .body:before{content:"";position:absolute;right:-8px;top:42%;width:62px;height:46px;
-      border-radius:12px;background:var(--tx);border:1px solid rgba(255,255,255,.25);transform:translateZ(8px)}
-    .body:after{content:"";position:absolute;right:10px;top:calc(42% + 17px);width:12px;height:12px;
-      border-radius:50%;background:var(--gain);box-shadow:0 0 12px var(--gain)}
-    .lbl{font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.72);text-transform:uppercase}
-    .wamt{font-size:clamp(26px,4.2vw,44px);font-weight:600;color:#fff;transform:translateZ(30px);
-      text-shadow:0 4px 14px rgba(0,0,0,.28)}
-    .wname{font-size:13px;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;
-      text-overflow:ellipsis;max-width:70%}
-    .chips{display:flex;gap:5px;flex-wrap:wrap;transform:translateZ(18px);max-width:78%}
-    .wchip{font-size:11px;background:rgba(255,255,255,.18);border-radius:20px;padding:2px 8px;color:#fff}
-    .flap{height:34%;bottom:auto;transform-origin:top;transform:translateZ(14px);
-      border-radius:18px 18px 0 0;clip-path:polygon(0 0,100% 0,100% 55%,50% 100%,0 55%);
-      background:linear-gradient(180deg,color-mix(in srgb,var(--violet) 78%,var(--tx)),
-        color-mix(in srgb,var(--blue) 70%,var(--tx)));
-      box-shadow:0 6px 14px rgba(22,26,46,.28)}
-    .wallet.go{animation:bwSpin 1.6s ease-in-out}
-    .wallet.go .flap{animation:bwFlap 1.6s ease-in-out}
-    @keyframes bwSpin{0%{transform:rotateY(0)}45%{transform:rotateY(360deg) scale(1.08)}100%{transform:rotateY(360deg)}}
-    @keyframes bwFlap{30%,70%{transform:translateZ(14px) rotateX(170deg)}}
-
-    /* Pièces */
-    .coins{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3}
-    .coins i{position:absolute;width:26px;height:26px;border-radius:50%;left:50%;bottom:30%;
-      background:radial-gradient(circle at 30% 30,var(--warn),#B87700);
-      border:2px solid #B87700;opacity:0;animation:bwCoin 1.4s ease-out forwards}
-    @keyframes bwCoin{0%{opacity:1;transform:translate(0,0)}
-      100%{opacity:0;transform:translate(var(--x),-170px) rotate(540deg)}}
-
-    /* Ressources */
-    .res{padding:10px;display:flex;flex-direction:column;gap:6px;min-height:0}
-    .res h3,.bout h3{margin:0;font-family:"Space Grotesk",sans-serif;font-size:12px;
-      letter-spacing:1.5px;text-transform:uppercase;color:var(--tx-2);font-weight:600}
-    .rl{display:flex;flex-direction:column;gap:6px;overflow:auto;min-height:0;flex:1}
-    .row{position:relative;display:grid;grid-template-columns:1.2fr 62px 1.6fr;gap:6px}
-    .row input{padding:7px 9px;font:inherit;font-size:13px;outline:none;min-width:0;
-      background:var(--card);border:1px solid var(--line-2);color:var(--tx);border-radius:10px;
-      transition:border-color .2s,box-shadow .2s}
-    .row input:focus{border-color:var(--violet);box-shadow:0 0 0 3px rgba(124,92,255,.12)}
-    .row input.warn{border-color:var(--warn);box-shadow:0 0 0 3px rgba(224,148,11,.14)}
-    .row input.q{text-align:center}
-    .row input.d{padding-right:30px}
-    /* Avertissement, plus refus : la ligne est enregistrée, mais elle sera
-       classée « ambiguë » et exclue du calcul tant qu'elle n'est pas reformulée. */
-    .rerr{grid-column:1 / -1;color:var(--warn);font-size:12px;margin:0}
-    .del{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:20px;height:20px;
-      border-radius:6px;border:1px solid var(--line-2);background:var(--card);color:var(--risk);
-      display:grid;place-items:center;font-size:11px;line-height:1;opacity:.45;cursor:pointer;
-      transition:opacity .2s,background .2s}
-    .row:hover .del,.row:focus-within .del{opacity:1}
-    .del:hover{background:rgba(232,69,95,.1)}
-    .cons{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:6px;
-      border-top:1px solid var(--line);max-height:44px;overflow:hidden}
-    .cons .lbl{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--tx-3)}
-    .cc{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--sub);color:var(--tx-2)}
-    .cc.hard{background:rgba(232,69,95,.12);color:var(--risk)}
-
-    /* ---------- Bouton unique ---------- */
-    .btnrow{display:flex;justify-content:center;flex:0 0 auto}
-    .go{border:0;cursor:pointer;color:#fff;font-weight:600;font-size:15px;padding:12px 34px;
-      border-radius:999px;background:var(--ai);box-shadow:var(--sh-ai);transition:transform .15s;
-      display:inline-flex;align-items:center;gap:10px}
-    .go:hover:not(:disabled){transform:translateY(-2px) scale(1.03)}
-    .go:disabled{opacity:.6;cursor:wait}
-    .go.sm{padding:7px 16px;font-size:12.5px;box-shadow:none}
-    .spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.5);
-      border-top-color:#fff;animation:bwSp .7s linear infinite}
+    /* ---------- En-tête ---------- */
+    .bhead{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:20px}
+    .bhead-main{min-width:0;flex:1 1 420px}
+    .back{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--tx-3);margin-bottom:8px}
+    .back:hover{color:var(--violet)}
+    .back svg{width:14px;height:14px}
+    .bhead .title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .meta{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:13px;color:var(--tx-2)}
+    .meta span+span{position:relative}
+    .meta span+span::before{content:"";position:absolute;left:-9px;top:50%;width:3px;height:3px;border-radius:50%;background:var(--tx-3)}
+    .bhead-side{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .st{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;
+      font-size:12.5px;font-weight:600;background:var(--sub);color:var(--tx-2);white-space:nowrap}
+    .st i{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.7}
+    .st.ok{background:rgba(18,147,110,.11);color:var(--gain)}
+    .st.ko{background:rgba(217,63,90,.11);color:var(--risk)}
+    .st.wait{background:var(--accent-soft);color:var(--violet)}
+    .st.wait i{animation:bwBlink 1s infinite}
+    @keyframes bwBlink{50%{opacity:.15}}
+    .spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.45);
+      border-top-color:#fff;animation:bwSp .7s linear infinite;flex:none}
+    .spin.dark{border-color:var(--line-2);border-top-color:var(--violet)}
     @keyframes bwSp{to{transform:rotate(360deg)}}
 
+    /* ---------- Zone principale ---------- */
+    .layout{display:grid;grid-template-columns:minmax(260px,.95fr) minmax(300px,1.1fr) minmax(340px,1.2fr);
+      gap:16px;align-items:stretch}
+    .layout>.card{display:flex;flex-direction:column;min-width:0;height:460px}
+
+    /* Assistant 3D */
+    .avatar{position:relative;overflow:hidden;padding-bottom:16px;
+      background:linear-gradient(180deg,var(--card) 0%,var(--card) 55%,var(--sub) 100%)}
+    .presence{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--gain)}
+    .presence::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+    .presence.on{color:var(--violet)}
+    .presence.on::before{animation:bwBlink 1s infinite}
+    .avatar-stage{position:relative;flex:1 1 auto;min-height:0;display:flex;margin:0 -20px}
+    .bubble{position:relative;margin-top:-8px;background:var(--card);color:var(--tx);
+      border:1px solid var(--line);border-radius:14px;padding:10px 13px;font-size:13px;line-height:1.45;
+      box-shadow:var(--sh);max-height:6.2em;overflow:auto}
+    .bubble::before{content:"";position:absolute;top:-7px;left:50%;width:12px;height:12px;margin-left:-6px;
+      background:var(--card);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
+    .avatar.busy .bubble{border-color:color-mix(in srgb,var(--violet) 45%,var(--line))}
+
+    /* Portefeuille 3D */
+    .wcard{overflow:hidden}
+    .wstage{position:relative;flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;perspective:900px}
+    .wstage::before{content:"";position:absolute;bottom:10%;width:62%;height:26px;
+      background:radial-gradient(ellipse,rgba(91,79,224,.22),transparent 70%);filter:blur(6px)}
+    .wallet{width:min(330px,88%);aspect-ratio:1.62;position:relative;transform-style:preserve-3d;
+      transition:transform .15s;animation:bwIdle 6s ease-in-out infinite}
+    @keyframes bwIdle{50%{translate:0 -7px}}
+    .body,.flap{position:absolute;inset:0;border-radius:18px}
+    .body{background:var(--ai);padding:16px 18px;display:flex;flex-direction:column;overflow:hidden;
+      justify-content:space-between;transform:translateZ(0);
+      box-shadow:0 30px 50px -24px rgba(21,23,31,.55),inset 0 0 0 1px rgba(255,255,255,.2)}
+    /* Fermoir : à l'intérieur de la carte (il débordait du bord droit). */
+    .body::before{content:"";position:absolute;right:14px;top:58%;width:48px;height:36px;
+      border-radius:10px;background:rgba(21,23,31,.82);border:1px solid rgba(255,255,255,.22)}
+    .body::after{content:"";position:absolute;right:26px;top:calc(58% + 12px);width:11px;height:11px;
+      border-radius:50%;background:#3dd3a0;box-shadow:0 0 10px #3dd3a0}
+    .lbl{font-size:10.5px;letter-spacing:.14em;color:rgba(255,255,255,.75);text-transform:uppercase;font-weight:700}
+    .wamt{font-size:clamp(22px,2.2vw,32px);font-weight:700;color:#fff;letter-spacing:-.02em;white-space:nowrap;
+      text-shadow:0 4px 14px rgba(0,0,0,.25)}
+    .wname{font-size:12.5px;color:rgba(255,255,255,.88);white-space:nowrap;overflow:hidden;
+      text-overflow:ellipsis;max-width:72%;font-weight:600}
+    .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;max-width:80%;max-height:44px;overflow:hidden}
+    .wchip{font-size:10.5px;background:rgba(255,255,255,.2);border-radius:20px;padding:2px 8px;color:#fff;
+      max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .flap{height:34%;bottom:auto;transform-origin:top;transform:translateZ(14px);
+      border-radius:18px 18px 0 0;clip-path:polygon(0 0,100% 0,100% 55%,50% 100%,0 55%);
+      background:linear-gradient(180deg,rgba(21,23,31,.38),rgba(21,23,31,.14));
+      box-shadow:0 6px 14px rgba(21,23,31,.25)}
+    .wallet.go{animation:bwSpin 1.6s ease-in-out}
+    .wallet.go .flap{animation:bwFlap 1.6s ease-in-out}
+    @keyframes bwSpin{0%{transform:rotateY(0)}45%{transform:rotateY(360deg) scale(1.06)}100%{transform:rotateY(360deg)}}
+    @keyframes bwFlap{30%,70%{transform:translateZ(14px) rotateX(170deg)}}
+    .coins{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3}
+    .coins i{position:absolute;width:24px;height:24px;border-radius:50%;left:50%;bottom:30%;
+      background:radial-gradient(circle at 30% 30%,#f2c14e,#b87700);
+      border:2px solid #b87700;opacity:0;animation:bwCoin 1.4s ease-out forwards}
+    @keyframes bwCoin{0%{opacity:1;transform:translate(0,0)}
+      100%{opacity:0;transform:translate(var(--x),-170px) rotate(540deg)}}
+    .wkpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+    .wkpis div{display:grid;gap:2px;min-width:0}
+    .wkpis span{font-size:11.5px;color:var(--tx-3);font-weight:600}
+    .wkpis b{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wkpis b.neg{color:var(--risk)}
+
+    /* Ressources */
+    .rhead,.row{display:grid;grid-template-columns:minmax(0,1.6fr) 58px minmax(0,1.2fr) 30px;gap:6px;align-items:center}
+    .rhead{padding:0 2px 6px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx-3)}
+    .rl{display:flex;flex-direction:column;gap:6px;overflow:auto;min-height:0;flex:1;padding:2px 2px 4px;margin:0 -2px}
+    .row .in{padding:8px 10px;font-size:13px;border-radius:10px}
+    .row .in.warn{border-color:var(--warn);box-shadow:0 0 0 3px rgba(199,130,10,.14)}
+    .row .in.q{text-align:center;padding:8px 4px}
+    .rerr{grid-column:1 / -1;color:var(--warn);font-size:12px;margin:0 2px}
+    .del{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--tx-3);
+      transition:background .2s,color .2s}
+    .del svg{width:14px;height:14px}
+    .del:hover{background:rgba(217,63,90,.1);color:var(--risk)}
+
+    /* ---------- Besoins des participants ---------- */
+    .needs{margin-top:16px}
+    .needs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+    .need{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--sub)}
+    .need.hard{border-color:rgba(217,63,90,.28);background:rgba(217,63,90,.05)}
+    .need-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .need-head b{font-size:13.5px}
+    .tag{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:6px;
+      background:rgba(217,63,90,.12);color:var(--risk)}
+    .count{display:block;margin:2px 0 8px;font-size:12px;font-weight:600;color:var(--tx-3)}
+    .need ul{list-style:none;display:grid;gap:4px}
+    .need li{display:grid;grid-template-columns:8px 1fr auto;gap:8px;align-items:baseline;font-size:12.5px;color:var(--tx-2);line-height:1.45}
+    .need li i{width:6px;height:6px;border-radius:50%;background:var(--risk);transform:translateY(-1px)}
+    .need li.soft i{background:var(--tx-3)}
+    .need li span{overflow-wrap:anywhere}
+    .need li small{flex:none;font-weight:700;color:var(--tx)}
+
     /* ---------- Résultats ---------- */
-    .bout{flex:1;min-height:0;padding:12px;display:grid;
-      grid-template-columns:1.4fr .9fr .9fr .9fr;gap:14px;overflow:hidden}
-    .bout .bempty{grid-column:1 / -1;display:flex;align-items:center;justify-content:center;
-      color:var(--tx-2);text-align:center;padding:18px}
-    .rcol{min-height:0;overflow:auto;font-size:13px;line-height:1.45}
-    .it{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:6px 0;
-      border-bottom:1px solid var(--line)}
+    .bout{margin-top:16px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);
+      grid-template-areas:"res tot" "adv adv" "amb amb";gap:22px 28px}
+    .c-res{grid-area:res}.c-tot{grid-area:tot}.c-adv{grid-area:adv}.c-amb{grid-area:amb}
+    .bout h3{font-size:14px;font-weight:700;margin-bottom:10px}
+    .bout .bempty{grid-column:1 / -1;display:flex;align-items:center;justify-content:center;gap:10px;
+      color:var(--tx-2);text-align:center;padding:22px}
+    .rcol{min-width:0;font-size:13px;line-height:1.5}
+    .c-tot{border-left:1px solid var(--line);padding-left:28px}
+    .c-adv,.c-amb{border-top:1px solid var(--line);padding-top:20px}
+    .c-adv .adv{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+    .c-adv .adv>li{margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--sub)}
+    .c-adv .adv>li>b{display:block;margin-bottom:4px}
+    .c-adv>p{margin-top:12px}
+    .it small,.urow small{margin-left:4px}
+    .c-amb .amb{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+    .it{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 0;border-bottom:1px solid var(--line)}
     .it:last-of-type{border-bottom:0}
     .it b{font-weight:600}
-    .it .p{color:var(--gain);font-family:"Space Grotesk",sans-serif;font-weight:600;text-align:right}
-    /* Recommandation d'achat : lien réel, jamais inventé. */
+    .it .p{color:var(--tx);font-weight:700;text-align:right}
     .it .lnk{grid-column:1 / -1;display:flex;flex-direction:column;gap:2px;padding-top:3px}
-    .offr{display:inline-flex;align-items:center;gap:6px;color:var(--violet);font-size:12px;
-      font-weight:600;text-decoration:none;word-break:break-all}
+    .offr{display:inline-flex;align-items:center;gap:6px;color:var(--violet);font-size:12px;font-weight:600;word-break:break-all}
     .offr:hover{text-decoration:underline}
     .nooffr{color:var(--tx-3);font-size:12px;font-style:italic;margin:0}
+    .npr{color:var(--warn);font-weight:600}
+    .nprz{grid-column:1 / -1;color:var(--tx-2);margin:2px 0 0}
     .it small{color:var(--tx-2)}
-    .tot{font-size:30px;font-weight:600;margin:4px 0}
-    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:600;font-size:12px}
-    .badge.ok{background:rgba(15,169,125,.12);color:var(--gain)}
-    .badge.ko{background:rgba(232,69,95,.12);color:var(--risk)}
-    .sum{margin:10px 0 0}
-    .kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;
-      border-bottom:1px solid var(--line);font-size:12.5px;color:var(--tx-2)}
-    .kv b{color:var(--tx);font-weight:600}
-    .rec{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--sub)}
-    .rec b{font-weight:600}
-    .adv{margin:6px 0 0;padding-left:18px}
-    .adv>li{margin-bottom:10px}
+    .uwarn{margin-top:12px;padding:12px;border-radius:12px;background:rgba(199,130,10,.08);border:1px solid rgba(199,130,10,.25)}
+    .uwarn .mini{margin:4px 0 6px;color:var(--tx-2)}
+    .urow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:4px 0}
+    .tot{font-size:30px;font-weight:700;letter-spacing:-.02em;margin:2px 0 6px}
+    .tot.none{font-size:18px;color:var(--tx-2)}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-weight:600;font-size:12px;background:var(--sub);color:var(--tx-2)}
+    .badge.ok{background:rgba(18,147,110,.11);color:var(--gain)}
+    .badge.ko{background:rgba(217,63,90,.11);color:var(--risk)}
+    .sum{margin:10px 0 4px;color:var(--tx-2)}
+    .kv{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--tx-2)}
+    .kv b{color:var(--tx);font-weight:700}
+    .figs{margin-top:12px}
+    .rec{margin-top:12px;padding:12px;border-radius:12px;background:var(--accent-soft)}
+    .rec b{font-weight:700}
+    .adv{margin:4px 0 0;padding-left:18px}
+    .adv>li{margin-bottom:12px}
     .adv>li:last-child{margin-bottom:0}
-    .chg{margin:5px 0 0;padding-left:16px;font-size:12.5px}
-    .chg>li{margin-bottom:4px}
+    .adv small{display:block;margin-top:2px}
+    .chg{margin:6px 0 0;padding-left:16px;font-size:12.5px}
+    .chg>li{margin-bottom:5px}
     .chg small{display:block;color:var(--tx-2)}
-    .chg a,.adv a{color:var(--blue);text-decoration:underline}
-    .confirm{margin-top:6px;padding:10px;border:1px solid var(--warn);border-radius:10px;
-      background:rgba(224,148,11,.1)}
+    .chg a,.adv a{color:var(--violet);text-decoration:underline}
+    .ghost{border:1px solid var(--line-2);background:var(--card);color:var(--tx-2);border-radius:10px;
+      padding:6px 12px;font-size:12px;font-weight:600;margin-top:8px;transition:background .2s,color .2s}
+    .ghost:hover{background:var(--sub);color:var(--tx)}
+    .go{border:0;color:#fff;font-weight:600;font-size:12.5px;padding:7px 14px;border-radius:10px;background:var(--ai)}
+    .confirm{margin-top:8px;padding:10px 12px;border:1px solid rgba(199,130,10,.35);border-radius:10px;background:rgba(199,130,10,.08)}
     .bacts{display:flex;gap:8px;margin-top:8px}
-    .ewarn{margin-top:10px;padding:10px;border:1px solid var(--warn);border-radius:10px;
-      background:rgba(224,148,11,.1);font-size:12.5px}
-    .draft{margin-top:8px}
-
-    /* ---------- Transparence recherche web ---------- */
-    .sinfo{margin-top:10px;padding:8px 10px;border:1px dashed var(--line-2);border-radius:10px;
-      color:var(--tx-3);font-size:11.5px;line-height:1.4}
-
-    /* ---------- Ressources ambiguës ---------- */
-    .amb{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-    .ambrow{padding:8px 10px;border:1px dashed var(--warn);border-radius:10px;
-      background:rgba(224,148,11,.07)}
+    .bacts .ghost{margin-top:0}
+    .draft{margin-top:10px}
+    .sinfo{margin-top:12px;padding:9px 11px;border:1px dashed var(--line-2);border-radius:10px;
+      color:var(--tx-3);font-size:11.5px;line-height:1.45}
+    .amb{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+    .ambrow{padding:10px 12px;border:1px dashed rgba(199,130,10,.5);border-radius:10px;background:rgba(199,130,10,.06)}
     .ambrow .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
     .ambrow b{font-weight:600;word-break:break-word}
     .ambrow .qty{color:var(--tx-2);font-size:12px;white-space:nowrap}
-    .ambrow p{margin:4px 0 0;color:var(--tx-2);font-size:12px;line-height:1.4}
+    .ambrow p{margin:4px 0 0;color:var(--tx-2);font-size:12px;line-height:1.45}
     .ambrow .fix{margin-top:5px;color:var(--tx-3);font-size:11.5px}
-    .ambnone{color:var(--tx-2);font-size:12.5px;margin:6px 0 0}
+    .ambnone{color:var(--tx-2);font-size:12.5px;margin:2px 0 0}
 
     /* ---------- Toast ---------- */
     .btoast{position:fixed;left:50%;top:72px;transform:translate(-50%,-140%);z-index:200;
       display:flex;align-items:center;gap:14px;background:var(--card);color:var(--risk);
-      border-left:5px solid var(--risk);border-radius:12px;padding:12px 18px;font-weight:600;
-      font-size:14px;box-shadow:var(--sh);max-width:92vw;
-      animation:bwTin .35s var(--ease) forwards}
+      border:1px solid rgba(217,63,90,.3);border-left:4px solid var(--risk);border-radius:12px;padding:12px 16px;
+      font-weight:600;font-size:13.5px;box-shadow:var(--sh-lg);max-width:92vw;animation:bwTin .35s var(--ease) forwards}
     @keyframes bwTin{to{transform:translate(-50%,0)}}
     .btoast button{border:0;background:none;color:var(--risk);cursor:pointer;font-size:15px}
 
     /* ---------- Responsive ---------- */
-    @media (max-width:860px){
-      .layout{grid-template-columns:1fr;height:auto}
-      .avatar{display:none}
-      .wstage{min-height:200px}
-      .bout{grid-template-columns:1fr;overflow:visible}
-      .rcol{overflow:visible}
-      .hdr input.ro.ev{flex:1 1 100%}
+    @media (max-width:1240px){
+      .layout{grid-template-columns:1fr 1fr}
+      .layout>.res{grid-column:1 / -1;height:auto;max-height:420px}
+      .bout{grid-template-columns:1fr;grid-template-areas:"res" "tot" "adv" "amb"}
+      .c-tot{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:20px}
+    }
+    @media (max-width:760px){
+      .layout{grid-template-columns:1fr}
+      .layout>.card{height:auto}
+      .avatar-stage{height:300px;flex:none}
+      .wstage{min-height:220px}
+      .c-adv .adv,.c-amb .amb{grid-template-columns:1fr}
+      .bhead .title{white-space:normal}
     }
   `]
 })
@@ -699,7 +765,8 @@ export class BudgetDetailComponent implements OnInit {
   load: Load = 'loading';
   loadError = '';
   summary: BudgetSummary | null = null;
-  constraints: ConstraintAgg[] = [];
+  constraints: ConstraintGroup[] = [];
+  registeredCount = 0;
 
   rows: ResourceRow[] = [];
   private removedIds: string[] = [];
@@ -777,7 +844,6 @@ export class BudgetDetailComponent implements OnInit {
   get pricedCount(): number {
     return Number(
       this.analysis?.computed?.priced_count ??
-      this.analysis?.priced_count ??
       this.summary?.priced_count ??
       (this.aiState === 'ok' && this.analysis ? (this.understoodItems.filter(i => !!i.total).length) : 0)
     ) || 0;
@@ -886,6 +952,24 @@ export class BudgetDetailComponent implements OnInit {
     const names = this.rows.map((r) => (r.name || '').trim()).filter(Boolean);
     const head = names.slice(0, 4);
     return names.length > 4 ? [...head, `+${names.length - 4}`] : head;
+  }
+
+  /**
+   * Reste (négatif = dépassement) : celui de la dernière analyse, sinon celui
+   * enregistré côté serveur. ``null`` tant que rien n'est chiffré.
+   */
+  get remainingValue(): number | null {
+    if (this.aiState === 'thinking' || this.pricedCount === 0 || !this.budgetAvailable) return null;
+    const fromAnalysis = this.aiState === 'ok'
+      ? this.figures?.initial_remaining ?? this.analysis?.computed?.remaining_budget
+      : null;
+    const value = fromAnalysis ?? this.summary?.remaining_budget;
+    return value == null ? null : Number(value);
+  }
+
+  get remainingLabel(): string {
+    const remaining = this.remainingValue;
+    return remaining == null ? '—' : `${Math.round(Math.abs(remaining)).toLocaleString('fr-FR')} €`;
   }
 
   /** Lignes réellement saisies (ignore les lignes totalement vides). */
@@ -1290,19 +1374,34 @@ export class BudgetDetailComponent implements OnInit {
     }).subscribe({
       next: ({ links, people }) => {
         const ids = new Set((links || []).map((l) => l.participant));
-        const agg = new Map<string, ConstraintAgg>();
+        this.registeredCount = ids.size;
+        const groups = new Map<string, { type: string; people: Set<string>; hard: boolean;
+          values: Map<string, { value: string; count: number; hard: boolean }> }>();
         (people || []).forEach((p) => {
           if (!ids.has(p.id)) return;
           (p.constraints || []).forEach((c: any) => {
-            const key = String(c.value || '').toLowerCase();
-            if (!key) return;
-            const cur = agg.get(key) || { value: c.value, count: 0, isHard: false };
-            cur.count += 1;
-            cur.isHard = cur.isHard || !!c.is_hard;
-            agg.set(key, cur);
+            const value = String(c.value || '').trim();
+            if (!value) return;
+            const type = String(c.type || 'Autre').trim() || 'Autre';
+            const group = groups.get(type.toLowerCase())
+              || { type, people: new Set<string>(), hard: false, values: new Map() };
+            group.people.add(p.id);
+            group.hard = group.hard || !!c.is_hard;
+            const entry = group.values.get(value.toLowerCase()) || { value, count: 0, hard: false };
+            entry.count += 1;
+            entry.hard = entry.hard || !!c.is_hard;
+            group.values.set(value.toLowerCase(), entry);
+            groups.set(type.toLowerCase(), group);
           });
         });
-        this.constraints = Array.from(agg.values()).sort((a, b) => b.count - a.count);
+        this.constraints = Array.from(groups.values())
+          .map((g) => ({
+            type: g.type,
+            people: g.people.size,
+            hard: g.hard,
+            values: Array.from(g.values.values()).sort((a, b) => b.count - a.count),
+          }))
+          .sort((a, b) => Number(b.hard) - Number(a.hard) || b.people - a.people);
       },
       error: () => {}
     });

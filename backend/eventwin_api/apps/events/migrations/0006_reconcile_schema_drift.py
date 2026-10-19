@@ -33,11 +33,16 @@ class Migration(migrations.Migration):
         # base, on aligne seulement l'état des migrations sur le réel.
         migrations.SeparateDatabaseAndState(
             database_operations=[
+                # Base neuve (ex. Docker) : la colonne n'existe pas encore,
+                # on la crée ; sur une base qui l'a déjà, IF NOT EXISTS est
+                # sans effet.
                 migrations.RunSQL(
-                    sql=(
+                    sql=[
                         'ALTER TABLE events_event '
-                        'ALTER COLUMN capacity SET DEFAULT 0;'
-                    ),
+                        'ADD COLUMN IF NOT EXISTS capacity integer NOT NULL DEFAULT 0;',
+                        'ALTER TABLE events_event '
+                        'ALTER COLUMN capacity SET DEFAULT 0;',
+                    ],
                     reverse_sql=migrations.RunSQL.noop,
                     state_operations=[],
                 ),

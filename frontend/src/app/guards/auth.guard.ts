@@ -23,6 +23,13 @@ export const authGuard: CanActivateFn = (_route, state) => {
   return auth.isAuthenticated ? true : toLogin(router, state.url);
 };
 
+/** Pages publiques (accueil) : un utilisateur connecté va directement dans son espace. */
+export const guestGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.isAuthenticated ? router.createUrlTree([auth.homeRoute()]) : true;
+};
+
 /** Espace back-office : organisateurs et super-administrateurs. */
 export const organizerGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);

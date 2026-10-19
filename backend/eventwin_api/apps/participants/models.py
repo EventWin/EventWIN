@@ -9,6 +9,21 @@ from django.contrib.auth.models import User
 # Rôles imposés côté serveur. Un client ne peut jamais choisir son rôle :
 # l'inscription crée toujours un « participant » ; seul le super-administrateur
 # peut créer un organisateur (via invitation).
+def display_name(user) -> str:
+    """Nom affichable d'un compte : prénom + nom, à défaut l'identifiant."""
+    if user is None:
+        return ''
+    return user.get_full_name().strip() or user.username
+
+
+def split_full_name(full_name: str) -> tuple[str, str]:
+    """« Jeanne Marie Dupont » → (« Jeanne Marie », « Dupont »)."""
+    parts = (full_name or '').split()
+    if len(parts) < 2:
+        return (parts[0] if parts else ''), ''
+    return ' '.join(parts[:-1])[:150], parts[-1][:150]
+
+
 ROLE_CHOICES = [
     ('participant', 'Participant'),
     ('organizer', 'Organisateur'),

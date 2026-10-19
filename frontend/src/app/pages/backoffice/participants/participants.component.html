@@ -1,0 +1,189 @@
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Annuaire</div>
+    <h1 class="title">Participants</h1>
+    <p class="lede">Les comptes réels de la plateforme, leur profil déclaré et leurs inscriptions. Plus un profil est renseigné, plus le jumeau et l’adéquation IA sont précis.</p>
+  </div>
+  <div class="acts">
+    <button class="btn btn-sm" type="button" (click)="exportCsv()" [disabled]="loading || !visible.length">Exporter (CSV)</button>
+    <a class="btn btn-ai btn-sm" routerLink="/app/fit">Analyser l’adéquation IA</a>
+  </div>
+</div>
+
+<div *ngIf="error" class="card state">
+  <div class="ico-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg></div>
+  <h4>Chargement impossible</h4>
+  <p>{{ error }}</p>
+  <button class="btn btn-sm" type="button" (click)="load()">Réessayer</button>
+</div>
+
+<ng-container *ngIf="!error">
+  <!-- Indicateurs -->
+  <div class="grid g4">
+    <div class="stat">
+      <div class="lab">Comptes participants</div>
+      <div class="val n" *ngIf="!loading">{{ participants.length }}</div>
+      <div class="val skeleton" *ngIf="loading" style="width:60px;height:30px"></div>
+      <div class="foot"><span class="kpi-delta up" *ngIf="newThisWeek">+{{ newThisWeek }}</span> {{ newThisWeek ? 'cette semaine' : 'aucun nouveau cette semaine' }}</div>
+    </div>
+    <div class="stat">
+      <div class="lab">Profils renseignés</div>
+      <div class="val n" *ngIf="!loading">{{ profiledRate }}<sup>%</sup></div>
+      <div class="val skeleton" *ngIf="loading" style="width:60px;height:30px"></div>
+      <div class="foot">{{ profiled }} profil(s) avec préférences ou contraintes</div>
+    </div>
+    <div class="stat">
+      <div class="lab">Contraintes strictes</div>
+      <div class="val n" *ngIf="!loading">{{ withStrict }}</div>
+      <div class="val skeleton" *ngIf="loading" style="width:60px;height:30px"></div>
+      <div class="foot">participant(s) avec au moins un impératif</div>
+    </div>
+    <div class="stat lit">
+      <div class="lab"><span class="dotlive"></span> Inscriptions</div>
+      <div class="val n" *ngIf="!loading">{{ registrationsTotal }}</div>
+      <div class="val skeleton" *ngIf="loading" style="width:60px;height:30px"></div>
+      <div class="foot">{{ registeredPeople }} personne(s) inscrite(s) à au moins un événement</div>
+    </div>
+  </div>
+
+  <!-- Profil collectif -->
+  <div class="grid g2 mt" *ngIf="!loading">
+    <div class="card">
+      <div class="card-head"><h3>Ce que déclarent les participants</h3><p>sur {{ profiled }} profil(s)</p></div>
+      <div class="pref" *ngIf="topPreferences.length; else noPrefs">
+        <div class="pref-row" *ngFor="let p of topPreferences">
+          <span class="muted pref-label" [title]="p.label">{{ p.label }}</span>
+          <span class="track"><i [style.width.%]="p.rate"></i></span>
+          <span class="nn">{{ p.people }}</span>
+        </div>
+      </div>
+      <ng-template #noPrefs><p class="muted tiny">Aucune préférence déclarée pour l’instant.</p></ng-template>
+
+      <div class="interests" *ngIf="interests.length">
+        <h4>Intérêts moyens</h4>
+        <div class="interest" *ngFor="let i of interests">
+          <span>{{ i.label }}</span>
+          <div class="progress"><i [style.width.%]="i.avg * 10"></i></div>
+          <b class="n">{{ i.avg | number:'1.1-1' }}<small>/10</small></b>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Besoins impératifs à anticiper</h3><p>contraintes strictes</p></div>
+      <div class="needs" *ngIf="strictByType.length; else noNeeds">
+        <div class="need" *ngFor="let n of strictByType">
+          <span class="need-count n">{{ n.people }}</span>
+          <div>
+            <b>{{ n.type }}</b>
+            <small>{{ n.examples.join(' · ') }}</small>
+          </div>
+        </div>
+      </div>
+      <ng-template #noNeeds><p class="muted tiny">Aucune contrainte stricte déclarée.</p></ng-template>
+    </div>
+  </div>
+
+  <!-- Liste -->
+  <div class="card mt list-card">
+    <div class="list-head">
+      <div>
+        <h3>Liste des comptes</h3>
+        <p class="muted tiny">{{ visible.length }} résultat(s)</p>
+      </div>
+      <div class="seg" role="group" aria-label="Filtrer par rôle">
+        <button type="button" [attr.aria-pressed]="roleFilter === 'participant'" (click)="roleFilter = 'participant'">Participants <span>{{ count('participant') }}</span></button>
+        <button type="button" [attr.aria-pressed]="roleFilter === 'organizer'" (click)="roleFilter = 'organizer'">Organisateurs <span>{{ count('organizer') }}</span></button>
+        <button type="button" [attr.aria-pressed]="roleFilter === 'all'" (click)="roleFilter = 'all'">Tous <span>{{ count('all') }}</span></button>
+      </div>
+      <label class="search list-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>
+        <input [(ngModel)]="query" placeholder="Nom, e-mail, contrainte, événement…" aria-label="Rechercher un participant">
+      </label>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Participant</th><th>Contraintes</th><th>Profil</th><th>Inscriptions</th><th>Statut</th><th></th></tr>
+        </thead>
+        <tbody *ngIf="loading">
+          <tr *ngFor="let i of [1,2,3,4]"><td colspan="6"><div class="skeleton" style="height:28px"></div></td></tr>
+        </tbody>
+        <tbody *ngIf="!loading">
+          <ng-container *ngFor="let r of visible">
+            <tr class="row" [class.open]="expanded === r.id" (click)="toggle(r.id)" tabindex="0" (keydown.enter)="toggle(r.id)">
+              <td>
+                <div class="who">
+                  <i>{{ r.initials }}</i>
+                  <div><b>{{ r.full_name }}</b><small>{{ r.email }}</small></div>
+                </div>
+              </td>
+              <td>
+                <div class="chips">
+                  <span *ngFor="let c of r.constraints.slice(0, 2)" class="chip" [class.risk]="c.is_hard" [title]="c.type + ' : ' + c.value">{{ c.type }}</span>
+                  <span *ngIf="r.constraints.length > 2" class="chip">+{{ r.constraints.length - 2 }}</span>
+                  <span *ngIf="!r.constraints.length" class="muted tiny">—</span>
+                </div>
+              </td>
+              <td>
+                <span class="tiny" [class.muted]="!r.preferences.length">{{ r.preferences.length }} préférence(s)</span>
+              </td>
+              <td>
+                <div class="chips">
+                  <span *ngFor="let x of r.registrations.slice(0, 2)" class="chip accent" [title]="x.event_name">{{ x.event_name }}</span>
+                  <span *ngIf="r.registrations.length > 2" class="chip">+{{ r.registrations.length - 2 }}</span>
+                  <span *ngIf="!r.registrations.length" class="muted tiny">Aucune</span>
+                </div>
+              </td>
+              <td>
+                <span class="chip" [class.gain]="r.status === 'active'" [class.warn]="r.status === 'invited'" [class.risk]="r.status === 'disabled'">{{ statusLabel[r.status] || r.status }}</span>
+                <small class="role-tag" *ngIf="roleFilter === 'all'">{{ roleLabel[r.role] }}</small>
+              </td>
+              <td class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></td>
+            </tr>
+            <tr *ngIf="expanded === r.id" class="detail-row">
+              <td colspan="6">
+                <div class="detail">
+                  <div>
+                    <h4>Contraintes</h4>
+                    <ul *ngIf="r.constraints.length; else none">
+                      <li *ngFor="let c of r.constraints">
+                        <span class="dot" [class.hard]="c.is_hard"></span>
+                        <b>{{ c.type }}</b> — {{ c.value }}
+                        <small *ngIf="c.is_hard">stricte</small>
+                      </li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4>Préférences</h4>
+                    <ul *ngIf="r.preferences.length; else none">
+                      <li *ngFor="let p of sortedPreferences(r)"><b>{{ p.type }}</b> — {{ p.value }}</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4>Inscriptions</h4>
+                    <ul *ngIf="r.registrations.length; else none">
+                      <li *ngFor="let x of r.registrations">{{ x.event_name }} <small>· {{ x.created_at | date:'d MMM yyyy' }}</small></li>
+                    </ul>
+                    <p class="tiny muted joined">Compte créé le {{ r.created_at | date:'d MMMM yyyy' }}</p>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+          <tr *ngIf="!visible.length">
+            <td colspan="6">
+              <div class="state">
+                <h4>{{ rows.length ? 'Aucun résultat' : 'Aucun compte pour l’instant' }}</h4>
+                <p>{{ rows.length ? 'Modifiez la recherche ou le filtre.' : 'Les participants apparaissent ici dès leur inscription sur la plateforme.' }}</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</ng-container>
+
+<ng-template #none><p class="muted tiny">Aucune.</p></ng-template>

@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, catchError, firstValueFrom, forkJoin, map, of } from 'rxjs';
 import {
+  AiFit,
   ApiBudget,
   ApiBudgetCategory,
   ApiEvent,
@@ -13,10 +14,29 @@ import {
   TwinSource
 } from './twin.models';
 
+export interface EventFitPayload {
+  event_id: string;
+  model: string;
+  attendees: number;
+  missing: string[];
+  results: Record<string, AiFit>;
+  errors?: { participant_id: string; message: string }[];
+}
+
 /** Loads and persists the real API data behind an event's digital twin. */
 @Injectable({ providedIn: 'root' })
 export class TwinDataService {
   constructor(private readonly http: HttpClient) {}
+
+  /** Adéquation Gemini en cache pour les inscrits (aucun appel IA). */
+  getEventFit(eventId: string): Observable<EventFitPayload> {
+    return this.http.get<EventFitPayload>(`/api/ai/participant-fit/event/${eventId}/`);
+  }
+
+  /** Analyse Gemini des inscrits sans résultat (tous si ``refresh``). */
+  analyzeEventFit(eventId: string, refresh = false): Observable<EventFitPayload> {
+    return this.http.post<EventFitPayload>(`/api/ai/participant-fit/event/${eventId}/`, { refresh });
+  }
 
   listEvents(): Observable<ApiEvent[]> {
     return this.http.get<ApiEvent[]>('/api/events/');

@@ -798,7 +798,7 @@ def analyse_budget(
             'recommendations_skipped': recommendations_skipped,
             # Nom réel du modèle utilisé, pour que l'affichage soit exact.
             'model': getattr(settings, 'BUDGET_AI', {}).get(
-                'MODEL', getattr(settings, 'OLLAMA_MODEL', 'ollama')
+                'MODEL', getattr(settings, 'GEMINI_MODEL', 'gemini')
             ),
         },
         'expenses_count': len(expenses),

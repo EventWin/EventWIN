@@ -68,7 +68,7 @@ import * as THREE from 'three';
       text-shadow:0 2px 18px rgba(11,13,24,.35)}
     .wo-max sup{font-size:14px;font-weight:500;color:var(--tx-2);vertical-align:super;margin-left:1px}
     .wo-row{display:flex;align-items:baseline;justify-content:space-between;font-size:12px;color:var(--tx-2)}
-    .wo-row b{font-family:"Space Grotesk",sans-serif;font-size:14px;font-weight:600;color:var(--tx)}
+    .wo-row b{font-family:var(--font-ui);font-size:14px;font-weight:600;color:var(--tx)}
     .wo-bar{height:8px;border-radius:8px;background:rgba(255,255,255,.18);overflow:hidden;margin:7px 0 6px}
     .wo-bar i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--blue),var(--cyan));
       transition:width .7s var(--ease),background .4s}

@@ -424,6 +424,22 @@ class EstimationsTests(SimpleTestCase):
         self.assertTrue(result.warnings)
         self.assertIn('tarif fournisseur', result.reason.lower())
 
+    def test_estimate_not_based_on_any_page_survives_irrelevant_results(self):
+        # Cas réel (Gemini) : « sonorisation » estimée 550 € sans s'appuyer sur
+        # une page ; la recherche sans clé ne renvoie que des pages hors sujet.
+        # Le prix n'en dépendait pas : il reste une estimation IA, sans lien.
+        rejected = {'verdict': 'rejected', 'reason': 'la page ne mentionne pas sonorisation'}
+        with patch('apps.budgets.websearch.validate_direct_offer', return_value=rejected):
+            result = self.validate(
+                {'expense_id': 'e1', 'understood': True, 'unit_price_estimate': 550,
+                 'price_range_min': 300, 'price_range_max': 900, 'chosen_index': None},
+                candidates=[dict(OFFER_PAGE)],
+            )
+        self.assertEqual(result.status, estimations.STATUS_PRICED)
+        self.assertEqual(result.unit_price, Decimal('550'))
+        self.assertEqual(result.price_source, 'ai_estimate')
+        self.assertIsNone(result.offer)
+
     def test_unreachable_chosen_page_keeps_price_but_marks_the_link(self):
         # Page non atteinte : le prix reste indicatif, mais le lien est écarté.
         unreachable = {
@@ -1787,7 +1803,12 @@ class ApiTests(TestCase):
         def only_this(query, session=None):
             return websearch.SearchOutcome(results=[candidate])
 
-        with analysis_mocks(priced=choose_first, search=only_this):
+        # Page vérifiée : seul un lien vérifié est conservé (politique « aucun
+        # lien non confirmé »). Le test porte sur la longueur, pas sur la
+        # vérification.
+        verified = {'verdict': 'verified', 'verified': True, 'url': long_url,
+                    'title': 'Chaises pliables', 'price': None}
+        with analysis_mocks(priced=choose_first, search=only_this, validate=verified):
             response = self.analyze()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         item = BudgetItem.objects.get(event=self.event)

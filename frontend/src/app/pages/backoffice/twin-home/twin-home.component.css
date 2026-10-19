@@ -70,9 +70,9 @@
 .tw-panel{display:flex;flex-direction:column;gap:12px;max-height:clamp(420px,64vh,760px);overflow:auto}
 .tw-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .tw-panel-head small{display:block}
-.tw-panel-title{font-family:"Space Grotesk";font-size:17px}
+.tw-panel-title{font-family:var(--font-ui);font-size:17px}
 .tw-score{display:flex;gap:14px;align-items:center;padding:12px;border-radius:14px;background:var(--sub)}
-.tw-score-val{font-family:"Space Grotesk";font-size:36px;font-weight:600;line-height:1}
+.tw-score-val{font-family:var(--font-ui);font-size:36px;font-weight:600;line-height:1}
 .tw-score-val sup{font-size:13px;color:var(--tx-3)}
 .tw-score small{display:block;color:var(--tx-2);font-size:12px;margin-top:2px}
 .tw-facts{display:grid;gap:6px;font-size:13px}
@@ -188,3 +188,19 @@ p.tw-errors{margin-left:0}
   .tw-rec-body{padding-left:14px}
   .tw-weight{grid-template-columns:1fr 1fr 30px}
 }
+
+/* Évaluation Gemini dans le panneau participant */
+.tw-ai{display:grid;gap:10px;padding:12px;border-radius:12px;background:var(--ai-soft);border:1px solid color-mix(in srgb,var(--violet) 22%,transparent)}
+.tw-ai-summary{font-size:13px;line-height:1.5;color:var(--tx)}
+.tw-ai-block{padding:9px 11px;border-radius:10px;background:var(--card);font-size:12.5px}
+.tw-ai-block h5{font-size:11.5px;margin-bottom:4px}
+.tw-ai-block ul{padding-left:16px;display:grid;gap:3px;color:var(--tx-2)}
+.tw-ai-block.risk h5{color:var(--risk)}.tw-ai-block.ok h5{color:var(--gain)}.tw-ai-block.warn h5{color:var(--warn)}
+.tw-ai-dims{display:grid;gap:5px}
+.tw-ai-dim{display:grid;grid-template-columns:86px 1fr 26px;gap:8px;align-items:center;font-size:12px;color:var(--tx-2)}
+.tw-ai-dim i{height:6px;border-radius:6px;background:var(--card);overflow:hidden}
+.tw-ai-dim i b{display:block;height:100%;border-radius:6px}
+.tw-ai-dim small{text-align:right;font-weight:700;color:var(--tx)}
+.tw-ai-meta{font-size:11px;color:var(--tx-3)}
+.tw-ai-empty{font-size:12.5px;color:var(--tx-2);padding:10px 12px;border:1px dashed var(--line-2);border-radius:12px}
+.tw-src{margin-left:4px;font-size:10px;padding:1px 6px}

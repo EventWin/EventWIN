@@ -1,56 +1,231 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
+interface ApiParticipant {
+  id: string;
+  full_name: string;
+  email: string;
+  role: 'participant' | 'organizer';
+  status: 'active' | 'invited' | 'disabled';
+  created_at: string;
+  preferences: { id: string; type: string; value: string; weight?: number }[];
+  constraints: { id: string; type: string; value: string; is_hard: boolean }[];
+}
+
+interface ApiRegistration {
+  id: string;
+  event: string;
+  event_name: string;
+  participant: string;
+  attendance_status: string;
+  created_at: string;
+}
+
+interface Row extends ApiParticipant {
+  registrations: ApiRegistration[];
+  strict: number;
+  initials: string;
+}
+
+const STATUS_LABEL: Record<string, string> = { active: 'Actif', invited: 'Invité', disabled: 'Désactivé' };
+const ROLE_LABEL: Record<string, string> = { participant: 'Participant', organizer: 'Organisateur' };
+
+/**
+ * Annuaire des comptes : uniquement des données réelles (API participants +
+ * inscriptions). Tous les indicateurs sont calculés à partir de ces listes.
+ */
 @Component({
   selector: 'app-participants',
   standalone: true,
-  template: `
-    <div class="page-head">
-      <div><h1 class="title">Participants</h1><p class="lede">Les préférences déclarées alimentent directement le score de satisfaction. Plus elles sont renseignées, plus le jumeau voit juste.</p></div>
-      <div class="acts"><button class="btn btn-sm">Importer un CSV</button>
-        <button class="btn btn-ai btn-sm">Relancer le questionnaire</button></div>
-    </div>
-    <div class="grid g4">
-      <div class="stat"><div class="lab">Inscrits confirmés</div><div class="val n">64</div><div class="foot"><span class="up">+9</span> cette semaine</div></div>
-      <div class="stat"><div class="lab">Préférences renseignées</div><div class="val n">71<sup>%</sup></div><div class="foot">45 questionnaires complétés</div></div>
-      <div class="stat"><div class="lab">Régimes particuliers</div><div class="val n">11</div><div class="foot">dont 3 allergies sévères</div></div>
-      <div class="stat lit"><div class="lab"><span class="dotlive"></span> Segments détectés</div><div class="val n">4</div><div class="foot">regroupement automatique</div></div>
-    </div>
-    <div class="grid g2 mt">
-      <div class="card"><div class="card-head"><h3>Ce que les participants veulent</h3><p>sur 45 réponses</p></div>
-        <div class="pref">
-          <div class="pref-row"><span class="muted">Réseautage</span><span class="track"><i style="width: 88%"></i></span><span class="nn">88%</span></div>
-          <div class="pref-row"><span class="muted">Ateliers courts</span><span class="track"><i style="width: 76%"></i></span><span class="nn">76%</span></div>
-          <div class="pref-row"><span class="muted">Restauration</span><span class="track"><i style="width: 69%"></i></span><span class="nn">69%</span></div>
-          <div class="pref-row"><span class="muted">Confort hôtel</span><span class="track"><i style="width: 64%"></i></span><span class="nn">64%</span></div>
-          <div class="pref-row"><span class="muted">Trajet court</span><span class="track"><i style="width: 57%"></i></span><span class="nn">57%</span></div>
-          <div class="pref-row"><span class="muted">Plénière longue</span><span class="track"><i style="width: 23%"></i></span><span class="nn">23%</span></div>
-        </div>
-        <p class="tiny muted mt">Ces réponses expliquent pourquoi l'IA propose de raccourcir les temps assis.</p></div>
-      <div class="card"><div class="card-head"><h3>Segments identifiés</h3></div>
-        <div class="tl">
-          <div class="tl-item"><div class="tl-date n">24</div><div><h4>Les connecteurs</h4><p>Viennent pour rencontrer. Sensibles au format debout.</p></div></div>
-          <div class="tl-item"><div class="tl-date n">18</div><div><h4>Les studieux</h4><p>Priorisent le contenu, tolèrent mal les journées longues.</p></div></div>
-          <div class="tl-item"><div class="tl-date n">14</div><div><h4>Les navetteurs</h4><p>À plus de 200 km. Leur venue dépend du transport.</p></div></div>
-          <div class="tl-item"><div class="tl-date n">8</div><div><h4>Les décideurs</h4><p>Présence partielle, à placer sur les temps forts.</p></div></div>
-        </div></div>
-    </div>
-    <div class="card mt">
-      <div class="card-head"><h3>Liste des participants</h3><p>64 inscrits</p><button class="btn btn-sm">Exporter</button></div>
-      <div class="tw"><table>
-        <thead><tr><th>Participant</th><th>Équipe</th><th>Segment</th><th>Trajet</th><th>Contraintes</th><th>État</th></tr></thead>
-        <tbody>
-          <tr><td><div class="who"><i>AM</i><div><b>Amina Meziane</b><small>Direction</small></div></div></td><td>Comité</td>
-            <td><span class="chip">Décideurs</span></td><td class="n">Lille · 225 km</td><td>Sans gluten</td><td><span class="chip gain">Confirmée</span></td></tr>
-          <tr><td><div class="who"><i>TL</i><div><b>Thomas Lefèvre</b><small>Ingénieur</small></div></div></td><td>Produit</td>
-            <td><span class="chip">Studieux</span></td><td class="n">Grenoble · 110 km</td><td>Navette demandée</td><td><span class="chip gain">Confirmé</span></td></tr>
-          <tr><td><div class="who"><i>SK</i><div><b>Sofia Kovač</b><small>Marque</small></div></div></td><td>Marketing</td>
-            <td><span class="chip">Connecteurs</span></td><td class="n">Lyon · 6 km</td><td>—</td><td><span class="chip gain">Confirmée</span></td></tr>
-          <tr><td><div class="who"><i>NB</i><div><b>Nadia Brunet</b><small>Consultante</small></div></div></td><td>Externe</td>
-            <td><span class="chip">Navetteurs</span></td><td class="n">Rennes · 350 km</td><td>Aucun transport prévu</td><td><span class="chip risk">À traiter</span></td></tr>
-          <tr><td><div class="who"><i>ED</i><div><b>Éric Daoudi</b><small>Technique</small></div></div></td><td>IT</td>
-            <td><span class="chip">Studieux</span></td><td class="n">Lyon · 12 km</td><td>Accessibilité PMR</td><td><span class="chip gain">Confirmé</span></td></tr>
-        </tbody></table></div>
-    </div>
-  `
+  imports: [CommonModule, FormsModule, RouterLink],
+  templateUrl: './participants.component.html',
+  styleUrls: ['./participants.component.css'],
 })
-export class ParticipantsComponent {}
+export class ParticipantsComponent implements OnInit {
+  loading = true;
+  error = '';
+  rows: Row[] = [];
+  query = '';
+  roleFilter: 'all' | 'participant' | 'organizer' = 'participant';
+  expanded: string | null = null;
+
+  readonly statusLabel = STATUS_LABEL;
+  readonly roleLabel = ROLE_LABEL;
+
+  constructor(private http: HttpClient) {}
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.loading = true;
+    this.error = '';
+    forkJoin({
+      participants: this.http.get<ApiParticipant[]>('/api/participants/'),
+      registrations: this.http.get<ApiRegistration[]>('/api/event-participants/'),
+    }).subscribe({
+      next: ({ participants, registrations }) => {
+        const byParticipant = new Map<string, ApiRegistration[]>();
+        registrations.forEach(r => byParticipant.set(r.participant, [...(byParticipant.get(r.participant) ?? []), r]));
+        this.rows = participants.map(p => ({
+          ...p,
+          registrations: byParticipant.get(p.id) ?? [],
+          strict: p.constraints.filter(c => c.is_hard).length,
+          initials: this.initialsOf(p.full_name || p.email),
+        }));
+        this.loading = false;
+      },
+      error: (err) => {
+        this.error = err?.error?.error || err?.error?.detail || 'Impossible de charger les participants.';
+        this.loading = false;
+      },
+    });
+  }
+
+  // --- Listes filtrées --------------------------------------------------------
+
+  /** Comptes participants (hors organisateurs) : base de tous les indicateurs. */
+  get participants(): Row[] {
+    return this.rows.filter(r => r.role === 'participant');
+  }
+
+  get visible(): Row[] {
+    const q = this.normalize(this.query);
+    return this.rows
+      .filter(r => this.roleFilter === 'all' || r.role === this.roleFilter)
+      .filter(r => !q || this.normalize([
+        r.full_name, r.email,
+        ...r.constraints.map(c => `${c.type} ${c.value}`),
+        ...r.preferences.map(p => `${p.type} ${p.value}`),
+        ...r.registrations.map(x => x.event_name),
+      ].join(' ')).includes(q))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, 'fr'));
+  }
+
+  count(role: 'all' | 'participant' | 'organizer'): number {
+    return role === 'all' ? this.rows.length : this.rows.filter(r => r.role === role).length;
+  }
+
+  // --- Indicateurs -------------------------------------------------------------
+
+  get newThisWeek(): number {
+    const limit = Date.now() - 7 * 24 * 3600 * 1000;
+    return this.participants.filter(p => new Date(p.created_at).getTime() >= limit).length;
+  }
+
+  get profiled(): number {
+    return this.participants.filter(p => p.preferences.length || p.constraints.length).length;
+  }
+
+  get profiledRate(): number {
+    return this.participants.length ? Math.round((this.profiled / this.participants.length) * 100) : 0;
+  }
+
+  get withStrict(): number {
+    return this.participants.filter(p => p.strict > 0).length;
+  }
+
+  get registrationsTotal(): number {
+    return this.participants.reduce((sum, p) => sum + p.registrations.length, 0);
+  }
+
+  get registeredPeople(): number {
+    return this.participants.filter(p => p.registrations.length).length;
+  }
+
+  /** Contraintes strictes regroupées par type (combien de personnes concernées). */
+  get strictByType(): { type: string; people: number; examples: string[] }[] {
+    const map = new Map<string, { people: Set<string>; examples: Set<string> }>();
+    for (const p of this.participants) {
+      for (const c of p.constraints.filter(x => x.is_hard)) {
+        const entry = map.get(c.type) ?? { people: new Set(), examples: new Set() };
+        entry.people.add(p.id);
+        entry.examples.add(c.value);
+        map.set(c.type, entry);
+      }
+    }
+    return [...map.entries()]
+      .map(([type, v]) => ({ type, people: v.people.size, examples: [...v.examples].slice(0, 2) }))
+      .sort((a, b) => b.people - a.people);
+  }
+
+  /** Préférences les plus déclarées, en part des profils renseignés. */
+  get topPreferences(): { label: string; people: number; rate: number }[] {
+    const map = new Map<string, Set<string>>();
+    for (const p of this.participants) {
+      for (const pref of p.preferences) {
+        if (/^Intérêt|^Type de Profil/i.test(pref.type)) continue;
+        const label = `${pref.type} · ${pref.value}`;
+        map.set(label, (map.get(label) ?? new Set()).add(p.id));
+      }
+    }
+    const base = this.profiled || 1;
+    return [...map.entries()]
+      .map(([label, people]) => ({ label, people: people.size, rate: Math.round((people.size / base) * 100) }))
+      .filter(x => x.people > 1 || map.size <= 6)
+      .sort((a, b) => b.people - a.people)
+      .slice(0, 6);
+  }
+
+  /** Moyenne des intérêts notés « x/10 » dans le questionnaire. */
+  get interests(): { label: string; avg: number; n: number }[] {
+    const map = new Map<string, number[]>();
+    for (const p of this.participants) {
+      for (const pref of p.preferences) {
+        const match = /^Intérêt\s+(.+)$/i.exec(pref.type);
+        const score = /^(\d+(?:[.,]\d+)?)\s*\/\s*10/.exec(pref.value);
+        if (match && score) {
+          map.set(match[1], [...(map.get(match[1]) ?? []), parseFloat(score[1].replace(',', '.'))]);
+        }
+      }
+    }
+    return [...map.entries()]
+      .map(([label, values]) => ({ label, avg: values.reduce((a, b) => a + b, 0) / values.length, n: values.length }))
+      .sort((a, b) => b.avg - a.avg);
+  }
+
+  // --- Actions -------------------------------------------------------------------
+
+  toggle(id: string): void {
+    this.expanded = this.expanded === id ? null : id;
+  }
+
+  exportCsv(): void {
+    const header = ['Nom', 'E-mail', 'Rôle', 'Statut', 'Contraintes', 'Préférences', 'Inscriptions', 'Créé le'];
+    const lines = this.visible.map(r => [
+      r.full_name, r.email, ROLE_LABEL[r.role] ?? r.role, STATUS_LABEL[r.status] ?? r.status,
+      r.constraints.map(c => `${c.is_hard ? '[stricte] ' : ''}${c.type}: ${c.value}`).join(' | '),
+      r.preferences.map(p => `${p.type}: ${p.value}`).join(' | '),
+      r.registrations.map(x => x.event_name).join(' | '),
+      new Date(r.created_at).toLocaleDateString('fr-FR'),
+    ]);
+    const csv = [header, ...lines]
+      .map(cols => cols.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';'))
+      .join('\r\n');
+    const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `participants-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // --- Aides ---------------------------------------------------------------------
+
+  sortedPreferences(r: Row) {
+    return [...r.preferences].sort((a, b) => (b.weight ?? 1) - (a.weight ?? 1));
+  }
+
+  private initialsOf(name: string): string {
+    return name.replace(/@.*/, '').split(/[\s.]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  }
+
+  private normalize(value: string): string {
+    return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  }
+}

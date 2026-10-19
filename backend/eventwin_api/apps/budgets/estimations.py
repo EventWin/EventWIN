@@ -468,7 +468,12 @@ def _validate_one(raw: dict, expense: dict, candidates: list[dict], query: str) 
         else:
             result.price_source = 'ai_estimate'
     else:
-        if saw_rejected and candidate_verdicts and all(
+        # Le prix ne tombe que si l'IA l'a **adossé à une page** (``chosen_index``)
+        # et que toutes les pages se révèlent hors sujet : il n'avait alors pas
+        # d'autre fondement. Une estimation donnée sans s'appuyer sur aucune
+        # page (``chosen_index`` absent) reste une estimation IA, sans lien.
+        relied_on_page = raw.get('chosen_index') is not None
+        if relied_on_page and saw_rejected and candidate_verdicts and all(
             verdict == 'rejected' for verdict in candidate_verdicts
         ) and len(candidate_verdicts) == len(candidates):
             result.status = STATUS_UNPRICED

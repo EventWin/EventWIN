@@ -5,7 +5,12 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Charge backend/eventwin_api/.env quel que soit le dossier de lancement.
-load_dotenv(BASE_DIR / '.env', override=True)
+# Sous Docker, DOTENV_OVERRIDE=false laisse les variables de docker-compose
+# (DB_HOST=db, etc.) prioritaires sur celles du .env local.
+load_dotenv(
+    BASE_DIR / '.env',
+    override=os.getenv('DOTENV_OVERRIDE', 'true').lower() == 'true',
+)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
@@ -153,12 +158,20 @@ REST_FRAMEWORK = {
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
 }
 
-# --- Analyse budgétaire par IA locale (Ollama) -------------------------------
-# Ces variables étaient présentes dans .env mais jamais lues par Django.
-OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
-OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'llama3.2:3b')
-
-OLLAMA_TIMEOUT = _env_float('OLLAMA_TIMEOUT', 180.0)
+# --- Analyse budgétaire par IA (Google Gemini) --------------------------------
+# La clé reste côté serveur (jamais envoyée au front). Sans clé, l'IA est
+# signalée comme indisponible.
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.5-flash')
+# Modèles de repli (quota atteint, surcharge…), séparés par des virgules.
+GEMINI_FALLBACK_MODELS = [
+    m.strip() for m in os.getenv(
+        'GEMINI_FALLBACK_MODELS',
+        'gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-flash-lite-latest,gemini-2.5-flash',
+    ).split(',') if m.strip()
+]
+GEMINI_BASE_URL = os.getenv('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta')
+GEMINI_TIMEOUT = _env_float('GEMINI_TIMEOUT', 180.0)
 BUDGET_CURRENCY = os.getenv('BUDGET_CURRENCY', '')
 
 # --- Paramètres techniques du module Budget & Ressources ----------------------
@@ -166,15 +179,17 @@ BUDGET_CURRENCY = os.getenv('BUDGET_CURRENCY', '')
 # valeurs techniques (délais, tailles de lot, concurrence, domaines exclus)
 # vivent ici, surchargeables par variable d'environnement.
 BUDGET_AI = {
-    'BASE_URL': OLLAMA_BASE_URL,
-    'MODEL': OLLAMA_MODEL,
-    'TIMEOUT': OLLAMA_TIMEOUT,
-    'TEMPERATURE': _env_float('OLLAMA_TEMPERATURE', 0.4),
+    'BASE_URL': GEMINI_BASE_URL,
+    'API_KEY': GEMINI_API_KEY,
+    'MODEL': GEMINI_MODEL,
+    'FALLBACK_MODELS': GEMINI_FALLBACK_MODELS,
+    'TIMEOUT': GEMINI_TIMEOUT,
+    'TEMPERATURE': _env_float('GEMINI_TEMPERATURE', 0.4),
     # Nombre de ressources envoyées par appel LLM : le coût et le nombre
     # d'appels ne doivent pas croître avec le nombre de ressources (2 appels
     # maximum par analyse : un lot + l'analyse budgétaire). Surchargeable par
     # environnement pour les machines plus ou moins puissantes.
-    'BATCH_SIZE': max(1, _env_int('OLLAMA_BATCH_SIZE', 20)),
+    'BATCH_SIZE': max(1, _env_int('AI_BATCH_SIZE', 20)),
     # Délai global d'une analyse : au-delà, le reste passe en tâche de fond.
     'ANALYSIS_TIMEOUT': _env_float('BUDGET_ANALYSIS_TIMEOUT', 120.0),
     # Deux analyses simultanées du même événement sont refusées (409).

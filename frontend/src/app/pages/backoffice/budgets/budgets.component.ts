@@ -114,7 +114,7 @@ type State = 'loading' | 'error' | 'ok';
     .evstat{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;
       background:var(--sub);border:1px solid var(--line)}
     .evstat .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx-2)}
-    .evstat b{font-size:19px;font-family:"Space Grotesk",sans-serif;color:var(--blue)}
+    .evstat b{font-size:19px;font-family:var(--font-ui);color:var(--blue)}
     .evacts{display:flex;align-items:center;justify-content:space-between;gap:12px}
     @media (prefers-reduced-motion: reduce){.evcard{transition:none}.evcard:hover{transform:none}}
   `]

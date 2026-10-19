@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../../services/auth.service';
 import { ParticipantService } from '../../../../services/participant.service';
+import { LandingTwinComponent } from '../../landing/landing-twin.component';
 
 /**
  * Interface de connexion **unique** pour tous les utilisateurs d'EventTwin.
@@ -16,7 +17,7 @@ import { ParticipantService } from '../../../../services/participant.service';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, LandingTwinComponent],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
@@ -25,6 +26,7 @@ export class LoginComponent {
   password = '';
   errorMessage = '';
   loading = false;
+  showPassword = false;
 
   constructor(
     private participantService: ParticipantService,

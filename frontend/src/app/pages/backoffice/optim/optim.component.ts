@@ -1,5 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { EventContextService } from '../../../twin/event-context.service';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 const ICONS: Record<string, string> = {
@@ -10,6 +12,10 @@ const ICONS: Record<string, string> = {
   activite: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.2 2"/>'
 };
 
+// Coûts unitaires indicatifs (€ par personne, et par jour si « perDay ») et
+// satisfaction relative de chaque option : hypothèses de simulation, affichées
+// comme telles. Les données de l'événement (effectif, durée, budget) viennent
+// de l'API.
 const POSTES = [
   { id: "lieu", label: "Lieu et salles", sub: "où l'événement se déroule", icon: "lieu", perDay: true, options: [
     { n: "Salle municipale", d: "Fonctionnelle, hors du centre", c: 14, s: 52 },
@@ -38,6 +44,12 @@ const POSTES = [
   ]}
 ];
 
+interface OptimEvent {
+  id: string; name: string; status: string; event_type: string; location: string;
+  start_date: string | null; end_date: string | null; target_budget: string | number;
+  participant_expected: number; participant_target: number; registered_count: number;
+}
+
 const BASE = { lieu: 1, transport: 1, hebergement: 1, repas: 1, activite: 1 };
 const PRIO: any = {
   conviv: { repas: 1.9, activite: 1.7, lieu: 1.1 },
@@ -57,10 +69,15 @@ export class OptimComponent implements OnInit {
   step = 1;
   POSTES = POSTES;
   
+  // Événements réels servant de point de départ à la simulation.
+  events: OptimEvent[] = [];
+  eventId = '';
+  loadingEvents = true;
+
   S = {
-    people: 80,
-    days: 2,
-    budget: 40000,
+    people: 0,
+    days: 1,
+    budget: 0,
     prio: ['conviv', 'confort'],
     choice: { ...BASE } as any,
     start: null as any
@@ -71,10 +88,46 @@ export class OptimComponent implements OnInit {
   
   tips: any[] = [];
 
-  constructor(private sanitizer: DomSanitizer) {}
+  constructor(
+    private sanitizer: DomSanitizer,
+    private http: HttpClient,
+    private context: EventContextService
+  ) {}
 
   ngOnInit() {
+    this.http.get<OptimEvent[]>('/api/events/').subscribe({
+      next: (events) => {
+        this.events = events.filter(e => e.status !== 'cancelled');
+        const preferred = this.events.find(e => e.id === this.context.current?.id) ?? this.events[0];
+        if (preferred) this.useEvent(preferred.id);
+        this.loadingEvents = false;
+        this.calculate();
+      },
+      error: () => { this.loadingEvents = false; this.calculate(); },
+    });
+  }
+
+  get selectedEvent(): OptimEvent | undefined {
+    return this.events.find(e => e.id === this.eventId);
+  }
+
+  /** Reprend effectif, durée et budget de l'événement choisi. */
+  useEvent(id: string) {
+    this.eventId = id;
+    const e = this.selectedEvent;
+    if (!e) return;
+    this.S.people = Math.max(10, e.participant_expected || e.registered_count || e.participant_target || 10);
+    if (e.start_date && e.end_date) {
+      const days = Math.round((new Date(e.end_date).getTime() - new Date(e.start_date).getTime()) / 86400000) + 1;
+      this.S.days = Math.min(5, Math.max(1, days));
+    }
+    this.S.budget = Math.round(Number(e.target_budget) || 0);
+    this.context.select(e.id, e.name);
     this.calculate();
+  }
+
+  get perHead(): string {
+    return this.S.people && this.S.budget ? this.eur(this.S.budget / this.S.people) : '—';
   }
 
   getIcon(iconName: string): SafeHtml {
@@ -114,8 +167,8 @@ export class OptimComponent implements OnInit {
   }
 
   onBudgetChange(e: any) {
-    const v = e.target.value.replace(/[^\\d]/g, "");
-    this.S.budget = Math.max(1, +v || 0);
+    const v = e.target.value.replace(/[^\d]/g, "");
+    this.S.budget = Math.max(0, +v || 0);
     e.target.value = this.S.budget.toLocaleString("fr-FR");
     this.calculate();
   }

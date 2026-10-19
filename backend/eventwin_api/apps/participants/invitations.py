@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from apps.organizations.models import Organization
 from .mails import send_template_email
-from .models import OrganizerInvitation, Participant, hash_token
+from .models import OrganizerInvitation, Participant, hash_token, split_full_name
 
 
 def _new_token() -> str:
@@ -63,8 +63,10 @@ def create_invitation(email: str, full_name: str, created_by: User):
         if existing:
             raise ValueError('Une invitation est déjà en attente pour cet e-mail.')
 
+        first_name, last_name = split_full_name(full_name)
         user = User.objects.create_user(
-            username=email, email=email, password=None
+            username=email, email=email, password=None,
+            first_name=first_name, last_name=last_name,
         )
         user.set_unusable_password()
         user.save()
@@ -153,8 +155,10 @@ def accept_invitation(raw_token: str, password: str):
     # fantôme, le jeton reste la seule preuve.
     user = invitation.user
     if user is None:
+        first_name, last_name = split_full_name(invitation.full_name)
         user = User.objects.create_user(
-            username=invitation.email, email=invitation.email, password=None
+            username=invitation.email, email=invitation.email, password=None,
+            first_name=first_name, last_name=last_name,
         )
         user.set_unusable_password()
         user.save()

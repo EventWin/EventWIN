@@ -61,18 +61,23 @@
     <div class="acts">
       <a class="btn btn-sm" routerLink="/app/events" [queryParams]="{ edit: event.id }">Modifier</a>
       <button class="btn btn-sm" (click)="openCreate()">Nouvel événement</button>
-      <button class="btn btn-ai btn-sm" (click)="refreshTwin()" [disabled]="twinLoading">{{ twinLoading ? 'Calcul…' : 'Recalculer le jumeau' }}</button>
+      <button class="btn btn-sm" (click)="refreshTwin()" [disabled]="twinLoading">{{ twinLoading ? 'Calcul…' : 'Recalculer' }}</button>
+      <button class="btn btn-ai btn-sm" (click)="runAiFit(aiMissingCount === 0)" [disabled]="aiBusy || !displayed?.attendees?.length"
+              [title]="aiMissingCount ? aiMissingCount + ' inscrit(s) sans évaluation Gemini' : 'Réévaluer tous les inscrits avec Gemini'">
+        {{ aiBusy ? 'Gemini analyse…' : (aiMissingCount ? 'Évaluer avec Gemini (' + aiMissingCount + ')' : 'Réévaluer avec Gemini') }}
+      </button>
     </div>
   </header>
 
   <div class="tw-provenance" role="note">
     <span><i class="dot real"></i>Données réelles (API)</span>
     <span><i class="dot sim"></i>Affectations proposées — simulation non enregistrée</span>
-    <span><i class="dot calc"></i>{{ engineLabel }} — pas de modèle d'IA entraîné</span>
+    <span><i class="dot calc"></i>{{ scoringLabel }}</span>
     <span *ngIf="source?.partial?.length" class="warn">Sources indisponibles : {{ source?.partial?.join(', ') }}</span>
   </div>
 
   <div class="tw-alert" *ngIf="twinError">{{ twinError }} <button class="link" (click)="refreshTwin()">Réessayer</button></div>
+  <div class="tw-alert" *ngIf="aiError">{{ aiError }} <button class="link" (click)="runAiFit()">Réessayer</button></div>
 
   <!-- Main: viewport + context panel -->
   <div class="tw-main">
@@ -123,10 +128,41 @@
         <div class="tw-score">
           <div class="tw-score-val" [style.color]="scoreColor(a.fit.score)">{{ a.fit.score ?? '—' }}<sup *ngIf="a.fit.score !== null">/100</sup></div>
           <div>
-            <b>Adéquation à l'événement</b>
+            <b>Adéquation à l'événement <span class="chip" [class.ai]="a.fit.source === 'gemini'">{{ a.fit.source === 'gemini' ? 'Gemini' : 'Règles' }}</span></b>
             <small *ngIf="a.fit.score === null">Pas assez de données déclarées pour estimer un score.</small>
-            <small *ngIf="a.fit.score !== null">Confiance {{ pct(a.fit.confidence) }} · {{ a.fit.hasMismatch ? 'incompatibilité logistique détectée' : 'aucune incompatibilité détectée' }}</small>
+            <small *ngIf="a.fit.ai as ai">{{ ai.verdict.label }}<ng-container *ngIf="ai.capped"> · plafonné (contrainte stricte non satisfaite)</ng-container></small>
+            <small *ngIf="a.fit.score !== null && !a.fit.ai">Confiance {{ pct(a.fit.confidence) }} · {{ a.fit.hasMismatch ? 'incompatibilité logistique détectée' : 'aucune incompatibilité détectée' }}</small>
           </div>
+        </div>
+
+        <!-- Évaluation Gemini -->
+        <div class="tw-ai" *ngIf="a.fit.ai as ai">
+          <p class="tw-ai-summary" *ngIf="ai.summary">{{ ai.summary }}</p>
+          <div class="tw-ai-block risk" *ngIf="ai.blockers.length">
+            <h5>Contraintes strictes non satisfaites</h5>
+            <ul><li *ngFor="let b of ai.blockers"><b>{{ b.constraint }}</b><ng-container *ngIf="b.reason"> — {{ b.reason }}</ng-container></li></ul>
+          </div>
+          <div class="tw-ai-dims">
+            <div class="tw-ai-dim" *ngFor="let d of aiDimensions(a)" [title]="d.note">
+              <span>{{ d.label }}</span>
+              <i><b [style.width.%]="d.score" [style.background]="scoreColor(d.score)"></b></i>
+              <small class="n">{{ d.score }}</small>
+            </div>
+          </div>
+          <div class="tw-ai-block ok" *ngIf="ai.adaptations.length">
+            <h5>Aménagements suggérés</h5>
+            <ul><li *ngFor="let x of ai.adaptations">{{ x }}</li></ul>
+          </div>
+          <div class="tw-ai-block warn" *ngIf="ai.risks.length">
+            <h5>Points de vigilance</h5>
+            <ul><li *ngFor="let x of ai.risks">{{ x }}</li></ul>
+          </div>
+          <small class="tw-ai-meta">Gemini · {{ ai.model }} · {{ ai.analyzed_at | date:'d MMM, HH:mm' }}
+            <ng-container *ngIf="a.fit.rulesScore != null"> · règles locales : {{ a.fit.rulesScore }}</ng-container></small>
+        </div>
+        <div class="tw-ai-empty" *ngIf="!a.fit.ai">
+          Score calculé par les règles locales.
+          <button class="link" (click)="runAiFit()" [disabled]="aiBusy">Évaluer avec Gemini</button>
         </div>
         <p class="tw-note">Mesure l'adéquation entre l'événement prévu et les préférences déclarées — jamais la valeur de la personne.</p>
         <dl class="tw-facts">
@@ -135,7 +171,7 @@
           <div *ngIf="a.diet"><dt>Régime</dt><dd>{{ a.diet }}</dd></div>
           <div *ngIf="a.needsAccessibility"><dt>Accessibilité</dt><dd>Besoin déclaré</dd></div>
         </dl>
-        <h4 class="tw-sub">Facteurs</h4>
+        <h4 class="tw-sub">{{ a.fit.ai ? 'Contrôles logistiques (règles)' : 'Facteurs' }}</h4>
         <ul class="tw-factors">
           <li *ngFor="let f of a.fit.factors" [class]="factorClass(f.status)">
             <div class="tw-factor-top"><b>{{ f.label }}</b><span class="chip" [ngClass]="factorClass(f.status)">{{ factorStatusLabel(f.status) }}</span><small>poids {{ f.weight }}</small></div>
@@ -359,7 +395,9 @@
         <tbody>
           <tr *ngFor="let a of attendees" (click)="selectAttendee(a)" [class.sel]="selection?.kind === 'participant' && selection?.id === a.participantId" tabindex="0" (keydown.enter)="selectAttendee(a)">
             <td><div class="who"><i>{{ initials(a.name) }}</i><div><b>{{ a.name }}</b><small>{{ a.email }}</small></div></div></td>
-            <td><b class="n" [style.color]="scoreColor(a.fit.score)">{{ a.fit.score ?? '—' }}</b><small class="muted" *ngIf="a.fit.score === null"> données insuffisantes</small></td>
+            <td><b class="n" [style.color]="scoreColor(a.fit.score)">{{ a.fit.score ?? '—' }}</b>
+              <span class="chip ai tw-src" *ngIf="a.fit.source === 'gemini'" title="Évalué par Gemini">IA</span>
+              <small class="muted" *ngIf="a.fit.score === null"> données insuffisantes</small></td>
             <td class="n">{{ pct(a.fit.confidence) }}</td>
             <td>
               <span class="chip risk" *ngFor="let f of mismatches(a)">{{ f.label }}</span>
