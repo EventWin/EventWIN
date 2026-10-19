@@ -1,0 +1,266 @@
+<div class="page-head">
+  <div>
+    <h1 class="title">Adéquation participants × événements</h1>
+    <p class="lede">
+      Gemini compare, pour chaque participant, tous les événements sélectionnés à partir de son profil
+      (contraintes, préférences). Le score global est calculé par le serveur et plafonné à {{ blockerCap }}
+      dès qu’une contrainte stricte n’est pas satisfaite.
+    </p>
+  </div>
+  <div class="acts" *ngIf="model">
+    <span class="chip ai">IA · {{ model }}</span>
+  </div>
+</div>
+
+<!-- Sélection ---------------------------------------------------------------->
+<div class="card fit-setup">
+  <div *ngIf="loadingOptions" class="muted">Chargement…</div>
+  <div *ngIf="optionsError" class="warnbox">{{ optionsError }}</div>
+
+  <ng-container *ngIf="!loadingOptions && !optionsError">
+    <div class="fit-group">
+      <div class="fit-label">
+        <b>Événements</b>
+        <span class="muted tiny">{{ selectedEvents.size }} / {{ limits.events }} max</span>
+      </div>
+      <div class="fit-pills">
+        <button class="pill" *ngFor="let e of eventOptions" type="button"
+                [attr.aria-pressed]="selectedEvents.has(e.id)" (click)="toggleEvent(e.id)">
+          {{ e.name }}<small *ngIf="e.start_date"> · {{ shortDate(e.start_date) }}</small>
+        </button>
+        <span *ngIf="!eventOptions.length" class="muted tiny">Aucun événement disponible.</span>
+      </div>
+    </div>
+
+    <div class="fit-group">
+      <div class="fit-label">
+        <b>Participants</b>
+        <span class="muted tiny">{{ selectedParticipants.size }} sélectionné(s)</span>
+        <button class="link tiny" type="button" (click)="selectAllParticipants(true)">Tous</button>
+        <button class="link tiny" type="button" (click)="selectAllParticipants(false)">Aucun</button>
+      </div>
+      <div class="fit-pills">
+        <button class="pill" *ngFor="let p of participantOptions" type="button"
+                [attr.aria-pressed]="selectedParticipants.has(p.id)" (click)="toggleParticipant(p.id)"
+                [title]="p.constraints_count + ' contrainte(s), ' + p.preferences_count + ' préférence(s)'">
+          {{ p.full_name }}
+        </button>
+        <span *ngIf="!participantOptions.length" class="muted tiny">Aucun participant dans votre périmètre.</span>
+      </div>
+    </div>
+
+    <div class="fit-actions">
+      <label class="tiny muted fit-check">
+        <input type="checkbox" [(ngModel)]="refresh"> Ignorer le cache (réanalyser)
+      </label>
+      <button class="btn btn-ai" type="button" [disabled]="!canRun" (click)="run()">
+        {{ running ? 'Analyse en cours… ' + doneCount + ' / ' + rows.length : 'Analyser avec Gemini' }}
+      </button>
+    </div>
+  </ng-container>
+</div>
+
+<div *ngIf="globalError" class="warnbox fit-error">{{ globalError }}</div>
+
+<!-- Matrice ------------------------------------------------------------------->
+<div class="card fit-matrix" *ngIf="rows.length">
+  <div class="card-head">
+    <h3>Matrice d’adéquation</h3>
+    <p>Cliquez une case pour voir le détail du participant.</p>
+    <div class="fit-legend tiny">
+      <span><i class="dot s-excellent"></i>Très adapté ≥ 75</span>
+      <span><i class="dot s-good"></i>Adapté ≥ 55</span>
+      <span><i class="dot s-partial"></i>Partiel</span>
+      <span><i class="dot s-poor"></i>Peu adapté / bloquant</span>
+    </div>
+  </div>
+
+  <div class="tw">
+    <table class="fit-table">
+      <thead>
+        <tr>
+          <th class="sticky">Participant</th>
+          <th *ngFor="let e of events" class="ev-col">
+            <span class="ev-name">{{ e.name }}</span>
+            <small>{{ e.type }}<ng-container *ngIf="e.start_date"> · {{ shortDate(e.start_date) }}</ng-container></small>
+          </th>
+          <th>Meilleur choix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of rows" [class.selected]="row.id === selectedRowId">
+          <td class="sticky">
+            <button class="who fit-who" type="button" (click)="openCell(row.id)">
+              <i>{{ initials(row.name) }}</i>
+              <div>
+                <b>{{ row.name }}</b>
+                <small *ngIf="row.state.data?.cached">depuis le cache</small>
+              </div>
+            </button>
+          </td>
+
+          <ng-container *ngIf="row.state.status === 'done'">
+            <td *ngFor="let e of events" class="cell">
+              <button type="button" class="score {{ scoreClass(result(row, e.id)?.score) }}"
+                      [class.best]="row.state.data?.best_event_id === e.id"
+                      (click)="openCell(row.id, e.id)"
+                      [title]="result(row, e.id)?.summary || ''">
+                <span class="n">{{ result(row, e.id)?.score ?? '–' }}</span>
+                <span class="blk" *ngIf="result(row, e.id)?.blockers?.length"
+                      [title]="result(row, e.id)?.blockers?.length + ' contrainte(s) stricte(s) non satisfaite(s)'">⛔</span>
+              </button>
+              <small class="reg" *ngIf="isRegistered(row, e.id)">inscrit</small>
+            </td>
+            <td class="best-col">{{ eventName(row.state.data?.best_event_id) }}</td>
+          </ng-container>
+
+          <ng-container *ngIf="row.state.status === 'pending' || row.state.status === 'loading'">
+            <td *ngFor="let e of events" class="cell"><span class="score s-loading" [class.pulse]="row.state.status === 'loading'"></span></td>
+            <td class="muted tiny">{{ row.state.status === 'loading' ? 'Analyse…' : 'En attente' }}</td>
+          </ng-container>
+
+          <td *ngIf="row.state.status === 'error'" [attr.colspan]="events.length + 1" class="row-error">
+            {{ row.state.message }}
+            <button class="btn btn-sm" type="button" (click)="retry(row.id)" [disabled]="running">Réessayer</button>
+          </td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="sticky"><b>Synthèse</b></td>
+          <td *ngFor="let e of events" class="cell">
+            <ng-container *ngIf="eventStats(e.id) as s">
+              <span class="score small {{ scoreClass(s.avg) }}"><span class="n">{{ s.avg ?? '–' }}</span></span>
+              <small class="foot-stat">moyenne</small>
+              <small class="foot-stat" *ngIf="s.best">★ meilleur choix ×{{ s.best }}</small>
+              <small class="foot-stat risk" *ngIf="s.blockers">⛔ bloquant ×{{ s.blockers }}</small>
+            </ng-container>
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- Détail d'un participant ---------------------------------------------------->
+<div id="fit-detail" *ngIf="selectedRow as p" class="fit-detail">
+  <div class="card">
+    <div class="detail-head">
+      <div class="who big">
+        <i>{{ initials(p.full_name) }}</i>
+        <div>
+          <h2>{{ p.full_name }}</h2>
+          <small>{{ p.email }}</small>
+        </div>
+      </div>
+      <div class="profile-chips">
+        <span *ngFor="let c of p.profile.constraints" class="chip" [class.risk]="c.strict" [class.warn]="!c.strict"
+              [title]="c.strict ? 'Contrainte stricte' : 'Contrainte souple'">
+          {{ c.strict ? '●' : '○' }} {{ c.type }} : {{ c.value }}
+        </span>
+        <span *ngFor="let pref of topPreferences(p)" class="chip pref-chip">{{ pref.type }} : {{ pref.value }}</span>
+        <span *ngIf="!p.profile.constraints.length && !p.profile.preferences.length" class="muted tiny">Profil vide : l’analyse est peu fiable.</span>
+      </div>
+    </div>
+
+    <div class="comparison" *ngIf="p.comparison">
+      <span class="chip ai">Comparaison IA</span>
+      <p>{{ p.comparison }}</p>
+    </div>
+
+    <div class="diffs" *ngIf="p.differentiators?.length">
+      <h3>Ce qui fait la différence entre les événements</h3>
+      <div class="diff" *ngFor="let d of p.differentiators">
+        <b>{{ d.label }}</b>
+        <span class="diff-bar">
+          <span class="score small {{ scoreClass(d.best_score) }}"><span class="n">{{ d.best_score }}</span></span>
+          {{ eventName(d.best_event_id) }}
+          <span class="muted">vs</span>
+          <span class="score small {{ scoreClass(d.worst_score) }}"><span class="n">{{ d.worst_score }}</span></span>
+          {{ eventName(d.worst_event_id) }}
+        </span>
+        <small class="muted">écart {{ d.spread }} pts</small>
+      </div>
+    </div>
+    <p class="muted tiny" *ngIf="!p.differentiators?.length">
+      Aucune dimension ne varie fortement : les événements se valent à peu près pour ce participant.
+    </p>
+
+    <!-- Dimensions × événements -->
+    <h3 class="sec">Comparaison par dimension</h3>
+    <div class="tw">
+      <table class="dim-table">
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th *ngFor="let e of events" [class.focus]="e.id === focusEventId">{{ e.name }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let dim of dimensions" [class.diff-row]="isDifferentiator(p, dim.key)">
+            <td>
+              {{ dim.label }}
+              <small class="muted">×{{ dim.weight }}</small>
+            </td>
+            <td *ngFor="let e of events" [class.focus]="e.id === focusEventId"
+                [title]="p.results?.[e.id]?.dimensions?.[dim.key]?.note || ''">
+              <ng-container *ngIf="p.results?.[e.id]?.dimensions?.[dim.key] as d">
+                <div class="bar" *ngIf="d.score != null">
+                  <span class="fill {{ scoreClass(d.score) }}" [style.width.%]="d.score"></span>
+                  <span class="n">{{ d.score }}</span>
+                </div>
+                <span *ngIf="d.score == null" class="muted tiny">sans objet</span>
+                <small class="note">{{ d.note }}</small>
+              </ng-container>
+            </td>
+          </tr>
+          <tr class="total-row">
+            <td><b>Score global</b></td>
+            <td *ngFor="let e of events" [class.focus]="e.id === focusEventId">
+              <span class="score {{ scoreClass(p.results?.[e.id]?.score) }}"><span class="n">{{ p.results?.[e.id]?.score ?? '–' }}</span></span>
+              <small>{{ p.results?.[e.id]?.verdict?.label }}</small>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Fiches par événement -->
+  <div class="ev-cards">
+    <div class="card ev-card" *ngFor="let e of events" [class.focus]="e.id === focusEventId"
+         [class.is-best]="p.best_event_id === e.id">
+      <ng-container *ngIf="p.results?.[e.id] as r">
+        <div class="ev-card-head">
+          <span class="score {{ scoreClass(r.score) }}"><span class="n">{{ r.score ?? '–' }}</span></span>
+          <div>
+            <b>{{ e.name }}</b>
+            <small>{{ r.verdict.label }}<ng-container *ngIf="p.best_event_id === e.id"> · ★ meilleur choix</ng-container><ng-container *ngIf="p.registered_event_ids.includes(e.id)"> · inscrit</ng-container></small>
+          </div>
+        </div>
+        <p class="summary" *ngIf="r.summary">{{ r.summary }}</p>
+        <p class="capped tiny" *ngIf="r.capped">
+          Score plafonné à {{ blockerCap }} (sans blocage : {{ r.base_score }}).
+        </p>
+
+        <div class="block risk" *ngIf="r.blockers.length">
+          <h4>⛔ Contraintes strictes non satisfaites</h4>
+          <ul><li *ngFor="let b of r.blockers"><b>{{ b.constraint }}</b><ng-container *ngIf="b.reason"> — {{ b.reason }}</ng-container></li></ul>
+        </div>
+        <div class="block gain" *ngIf="r.strengths.length">
+          <h4>Points forts</h4>
+          <ul><li *ngFor="let s of r.strengths">{{ s }}</li></ul>
+        </div>
+        <div class="block warn" *ngIf="r.risks.length">
+          <h4>Points de vigilance</h4>
+          <ul><li *ngFor="let s of r.risks">{{ s }}</li></ul>
+        </div>
+        <div class="block ai" *ngIf="r.adaptations.length">
+          <h4>Aménagements suggérés</h4>
+          <ul><li *ngFor="let s of r.adaptations">{{ s }}</li></ul>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+</div>

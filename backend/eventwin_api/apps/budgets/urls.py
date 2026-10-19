@@ -1,11 +1,15 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import BudgetCategoryViewSet, BudgetViewSet, CostItemViewSet
+from .views import BudgetCategoryCompatView, BudgetCompatView, BudgetItemViewSet
 
 
 router = DefaultRouter()
-router.register(r'budgets', BudgetViewSet, basename='budget')
-router.register(r'budget-categories', BudgetCategoryViewSet, basename='budget-category')
-router.register(r'cost-items', CostItemViewSet, basename='cost-item')
+router.register(r'budget-items', BudgetItemViewSet, basename='budget-item')
 
-urlpatterns = router.urls
+urlpatterns = [
+    # Agrégats read-only consommés par le jumeau numérique (/app/home).
+    path('budgets/', BudgetCompatView.as_view(), name='budget-compat'),
+    path('budget-categories/', BudgetCategoryCompatView.as_view(), name='budget-category-compat'),
+    *router.urls,
+]

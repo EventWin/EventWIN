@@ -5,6 +5,8 @@ from django.db import transaction
 from django.http import HttpResponse
 from django.utils.text import slugify
 from rest_framework import status, viewsets
+
+from apps.participants.models import display_name
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -29,6 +31,7 @@ from .models import (
 from .permissions import (
     IsOrganizerOrAdmin,
     OrganizationScopedMixin,
+    as_participant,
     get_acting_participant,
     is_admin,
     is_organizer_or_admin,
@@ -54,7 +57,6 @@ def _truthy(value):
 
 
 class SponsorViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelViewSet):
-    authentication_classes = []
     permission_classes = [IsOrganizerOrAdmin]
     organization_lookup = 'organization'
     event_lookup = 'deals__event'
@@ -98,7 +100,7 @@ class SponsorViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelVi
         actor = get_acting_participant(self.request)
         extra_org = serializer.validated_data.get('organization') if is_admin(actor) else None
         organization = self.organization_for_create(extra_organization=extra_org)
-        serializer.save(created_by=actor, organization=organization)
+        serializer.save(created_by=as_participant(actor), organization=organization)
 
     @action(detail=False, methods=['post'], url_path='quick-create')
     def quick_create(self, request):
@@ -127,14 +129,14 @@ class SponsorViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelVi
         with transaction.atomic():
             sponsor_serializer = SponsorSerializer(data=sponsor_data, context=self.get_serializer_context())
             sponsor_serializer.is_valid(raise_exception=True)
-            sponsor = sponsor_serializer.save(created_by=actor, organization=organization)
+            sponsor = sponsor_serializer.save(created_by=as_participant(actor), organization=organization)
             deal = None
             if deal_data:
                 deal_serializer = SponsorshipDealSerializer(
                     data={**deal_data, 'sponsor': str(sponsor.id)}, context=self.get_serializer_context(),
                 )
                 deal_serializer.is_valid(raise_exception=True)
-                deal = deal_serializer.save(owner=actor)
+                deal = deal_serializer.save(owner=as_participant(actor))
                 log_activity(deal, actor, 'created', message='Dossier créé', to_status=deal.status)
         return Response(
             {
@@ -167,7 +169,6 @@ class SponsorViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelVi
 
 
 class SponsorshipPackageViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelViewSet):
-    authentication_classes = []
     permission_classes = [IsOrganizerOrAdmin]
     organization_lookup = 'event__organization'
     queryset = (
@@ -186,7 +187,6 @@ class SponsorshipPackageViewSet(OrganizationScopedMixin, EventFilterMixin, views
 
 
 class SponsorshipDealViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelViewSet):
-    authentication_classes = []
     permission_classes = [IsOrganizerOrAdmin]
     organization_lookup = 'event__organization'
     queryset = (
@@ -208,12 +208,12 @@ class SponsorshipDealViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets
     def get_queryset(self):
         queryset = super().get_queryset()
         if _truthy(self.request.query_params.get('mine')):
-            queryset = queryset.filter(owner=get_acting_participant(self.request))
+            queryset = queryset.filter(owner=as_participant(get_acting_participant(self.request)))
         return queryset
 
     def perform_create(self, serializer):
         actor = get_acting_participant(self.request)
-        owner = serializer.validated_data.get('owner') or actor
+        owner = serializer.validated_data.get('owner') or as_participant(actor)
         deal = serializer.save(owner=owner)
         log_activity(deal, actor, 'created', message='Dossier créé', to_status=deal.status)
 
@@ -272,7 +272,7 @@ class SponsorshipDealViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets
             raise ValidationError({'owner': "Le responsable doit appartenir à l'organisation de l'événement."})
         deal.owner = new_owner
         deal.save(update_fields=['owner'])
-        name = new_owner.user.username if new_owner.user else str(new_owner.id)
+        name = display_name(new_owner.user) if new_owner.user else str(new_owner.id)
         log_activity(deal, actor, 'owner_changed', message=f'Nouveau responsable : {name}')
         return Response(self.get_serializer(self._fresh(deal)).data)
 
@@ -314,7 +314,6 @@ class SponsorshipDealViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets
 
 
 class SponsorshipActivityViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelViewSet):
-    authentication_classes = []
     permission_classes = [IsOrganizerOrAdmin]
     organization_lookup = 'deal__event__organization'
     event_lookup = 'deal__event'
@@ -337,13 +336,12 @@ class SponsorshipActivityViewSet(OrganizationScopedMixin, EventFilterMixin, view
     def perform_create(self, serializer):
         actor = get_acting_participant(self.request)
         if serializer.validated_data.get('actor') is None:
-            serializer.save(actor=actor)
+            serializer.save(actor=as_participant(actor))
         else:
             serializer.save()
 
 
 class SponsorDeliverableViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelViewSet):
-    authentication_classes = []
     permission_classes = [IsOrganizerOrAdmin]
     organization_lookup = 'deal__event__organization'
     event_lookup = 'deal__event'
@@ -357,7 +355,6 @@ class SponsorDeliverableViewSet(OrganizationScopedMixin, EventFilterMixin, views
 
 
 class SponsorPaymentViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelViewSet):
-    authentication_classes = []
     permission_classes = [IsOrganizerOrAdmin]
     organization_lookup = 'deal__event__organization'
     event_lookup = 'deal__event'
@@ -371,7 +368,6 @@ class SponsorPaymentViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.
 
 
 class SponsorFitEvaluationViewSet(OrganizationScopedMixin, EventFilterMixin, viewsets.ModelViewSet):
-    authentication_classes = []
     permission_classes = [IsOrganizerOrAdmin]
     organization_lookup = 'event__organization'
     queryset = (
@@ -388,7 +384,6 @@ class SponsorFitEvaluationViewSet(OrganizationScopedMixin, EventFilterMixin, vie
 # ---------------------------------------------------------------------------
 
 class OrganizerAPIView(APIView):
-    authentication_classes = []
     permission_classes = [IsOrganizerOrAdmin]
 
 

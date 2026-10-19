@@ -6,6 +6,7 @@
 // written back to the API.
 
 import {
+  AiFit,
   ApiEvent,
   ApiParticipant,
   Attendee,
@@ -229,7 +230,7 @@ export function computeFit(p: ApiParticipant, ctx: FitContext, weights = DEFAULT
     ? Math.round((known.reduce((s, f) => s + f.weight * (f.value as number), 0) / knownWeight) * 100)
     : null;
 
-  return { score, confidence, factors, hasMismatch: factors.some((f) => f.status === 'mismatch') };
+  return { score, source: 'rules', confidence, factors, hasMismatch: factors.some((f) => f.status === 'mismatch') };
 }
 
 // ---- plans -------------------------------------------------------------------
@@ -303,7 +304,26 @@ export function baselineParams(source: TwinSource, venue: VenuePlan | null): Twi
 
 // ---- model -------------------------------------------------------------------
 
-export function buildTwin(source: TwinSource, weights = DEFAULT_WEIGHTS, params?: TwinScenarioParams): TwinModel {
+/**
+ * Remplace le score des règles par l'évaluation Gemini quand elle existe.
+ * Les facteurs des règles restent affichés comme contrôles logistiques
+ * (places, restauration enregistrée, programme) : ils dépendent du scénario.
+ */
+function withAi(rules: FitResult, ai: AiFit | undefined): FitResult {
+  if (!ai || ai.score === null) return rules;
+  return {
+    ...rules,
+    score: ai.score,
+    source: 'gemini',
+    ai,
+    rulesScore: rules.score,
+    confidence: 1,
+    hasMismatch: rules.hasMismatch || ai.blockers.length > 0
+  };
+}
+
+export function buildTwin(source: TwinSource, weights = DEFAULT_WEIGHTS, params?: TwinScenarioParams,
+                          aiFits: Record<string, AiFit> = {}): TwinModel {
   const { event } = source;
   const byId = new Map(source.participants.map((p) => [p.id, p]));
   const kind = sceneKindFor(event);
@@ -335,13 +355,13 @@ export function buildTwin(source: TwinSource, weights = DEFAULT_WEIGHTS, params?
     constraints: p.constraints || [],
     needsAccessibility,
     diet,
-    fit: computeFit(p, {
+    fit: withAi(computeFit(p, {
       event,
       hasCatering: catering.length > 0,
       cateringText: catering.map((c) => `${c.name} ${c.resource_type}`).join(' '),
       hasSeat: transport ? !unseated.has(p.id) : null,
       firstSessionHour: firstSession ? firstSession.getHours() : null
-    }, weights)
+    }, weights), aiFits[p.id])
   }));
 
   const kpis = computeKpis(source, attendees, transport, venue);

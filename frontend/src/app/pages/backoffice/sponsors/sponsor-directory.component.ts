@@ -19,7 +19,7 @@ import {
           <div class="empty"><h4>Créez votre premier sponsor</h4>
             <p>Ajoutez vos contacts à la main ou importez-les depuis un fichier CSV.</p>
             <div class="row-actions" style="justify-content:center">
-              <button type="button" class="btn btn-sm btn-ai" (click)="state.openSponsorForm()">Nouveau sponsor</button>
+              <button type="button" class="btn btn-sm btn-primary" (click)="state.openSponsorForm()">Nouveau sponsor</button>
               <button type="button" class="btn btn-sm" (click)="openImport()">Importer un CSV</button>
             </div></div>
         } @else {
@@ -36,7 +36,7 @@ import {
             <span class="spacer"></span>
             <button type="button" class="btn btn-sm" (click)="evaluate(null)" [disabled]="evaluating">{{ evaluating ? 'Évaluation…' : 'Évaluer la pertinence' }}</button>
             <button type="button" class="btn btn-sm" (click)="openImport()">Importer CSV</button>
-            <button type="button" class="btn btn-sm btn-ai" (click)="state.openSponsorForm()">Nouveau sponsor</button>
+            <button type="button" class="btn btn-sm btn-primary" (click)="state.openSponsorForm()">Nouveau sponsor</button>
           </div>
 
           <div class="tw">
@@ -84,7 +84,7 @@ import {
             }
             <div class="form-actions">
               <button type="button" class="btn btn-sm" (click)="importOpen = false">Fermer</button>
-              <button type="button" class="btn btn-sm btn-ai" [disabled]="!file || importing" (click)="doImport()">{{ importing ? 'Import…' : 'Importer' }}</button>
+              <button type="button" class="btn btn-sm btn-primary" [disabled]="!file || importing" (click)="doImport()">{{ importing ? 'Import…' : 'Importer' }}</button>
             </div>
           </div>
         }

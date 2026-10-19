@@ -6,20 +6,17 @@ Le module **sponsors** ajoute les entrées d'argent au projet : un sponsor finan
 
 Les sponsors n'ont **pas de compte**. Ils sont créés et gérés uniquement par un organisateur (`Participant.role = organizer`) ou un administrateur (`role = admin`). Un sponsor accède à son dossier uniquement via un **lien de portail signé** généré par l'organisateur.
 
-## Sécurité provisoire (`X-Participant-Id`)
+## Sécurité
 
-Le projet n'a pas d'authentification DRF globale : le rôle est renvoyé par `POST /api/participants/login/` et stocké en `localStorage` (`participant_id`, `participant_role`).
+Le module utilise l'**authentification du projet** (jeton DRF envoyé par l'intercepteur Angular) et les règles de `apps/core/permissions.py` :
 
-Le module sponsors s'appuie sur une solution **isolée** dans `apps/sponsors/permissions.py` :
-
-- `get_acting_participant(request)` lit l'en-tête HTTP `X-Participant-Id`.
-- `IsOrganizerOrAdmin` n'autorise que si le participant existe et a `role` dans `organizer` / `admin`.
-- `OrganizationScopedMixin` filtre sur l'organisation de l'organisateur ; un admin voit tout.
+- `get_acting_participant(request)` renvoie le profil `Participant` de l'utilisateur **authentifié** — ou, pour un super-administrateur Django sans profil, un `SuperAdminActor` (voit tout, n'est jamais enregistré comme auteur ou responsable : `as_participant()` le convertit en `None`).
+- `IsOrganizerOrAdmin` : organisateur **actif** (`Participant.is_organizer`) ou super-administrateur.
+- `OrganizationScopedMixin` filtre sur l'organisation de l'organisateur ; un super-administrateur voit tout.
 - `scoped_event_or_error` / `scoped_scenario_or_error` appliquent le même cloisonnement aux endpoints d'analyse (un événement d'une autre organisation répond 404).
+- Anonyme : 401 (le front redirige vers la connexion). L'ancien en-tête `X-Participant-Id`, falsifiable, **n'est plus lu** (test `test_legacy_participant_header_is_ignored`).
 
-**Limite : cet en-tête est falsifiable** (le client peut envoyer n'importe quel UUID). Il doit être remplacé par une vraie authentification (session Django ou JWT) décidée par l'équipe. **Seul `permissions.py` est à changer** (et `sponsors-data.service.ts` côté Angular, qui ajoute l'en-tête) ; les viewsets continuent d'utiliser `IsOrganizerOrAdmin` et `OrganizationScopedMixin`.
-
-Le portail sponsor n'utilise pas cet en-tête : accès par jeton signé uniquement.
+Le portail sponsor reste public : accès par jeton signé uniquement.
 
 ## Modèles
 
@@ -145,9 +142,12 @@ Exemple de recommandation :
 
 ### Budget
 
-`net_budget(event, budget_id=None)` lit `Budget` / `BudgetCategory` / `CostItem` : par catégorie, `planned_amount` s'il est > 0, sinon la somme des `planned_cost` ; à défaut `Budget.total_budget`. Le budget le plus récent est utilisé, sauf `?budget=<uuid>`.
+`net_budget(event)` s'appuie sur le module Budget actuel : coût estimé = ressources `BudgetItem` chiffrées, via le même `calculate_budget` que la page Budget ; budget cible = `Event.target_budget`. Le paramètre `?budget=` est accepté pour compatibilité mais sans effet (un événement a un seul budget).
 
-Côté Angular, `SponsorNetBudgetCardComponent` (`app-sponsor-net-budget-card`) est autonome : `<app-sponsor-net-budget-card [eventId]="id" />` suffit à l'intégrer dans la page Budgets.
+Intégrations dans l'application :
+
+- **Page Budget** (`/app/budgets/:id`) : carte « Financement sponsors » — confirmé, pipeline pondéré, coût estimé et **coût net à financer** (coût estimé − sponsoring confirmé), rafraîchie après chaque analyse IA.
+- **Supervision** (`/api/dashboard/`) : colonne Sponsoring (confirmé, pondéré, coût net) par événement, total couvert par les sponsors, et alertes sponsors (paiements, contreparties, négociations inactives, conflits) dans « Points d'attention ».
 
 ### Simulation
 
@@ -188,15 +188,15 @@ Chaque écran gère les états chargement, vide et erreur (avec « Réessayer »
 ## Tests
 
 ```bash
-cd backend/eventwin_api
-python -m pytest apps/sponsors -q     # SQLite en mémoire (eventwin_api/test_settings.py)
-cd ../../frontend
-npx ng build --configuration development
+docker compose exec api python -m pytest apps/sponsors -q   # base de test PostgreSQL séparée (test_eventwin)
+docker compose exec api python manage.py test apps          # reste du projet
+cd frontend && npx ng build --configuration development
 ```
+
+`pytest.ini` utilise `eventwin_api.settings` : ne pas le faire pointer sur `test_settings`, dont la base de test est la base réelle (usage `--keepdb` avec le runner Django uniquement).
 
 ## Limites connues
 
-- L'en-tête `X-Participant-Id` n'est pas une vraie authentification (voir plus haut).
 - `GET /api/participants/get_organizers/` (module participants) renvoie les organisateurs de toutes les organisations : le panneau de deal filtre côté client par organisation.
 - Un deal peut être **créé** directement avec un statut avancé (utile pour l'import et les tests) ; les contreparties ne sont alors générées qu'en passant par `transition`.
-- La page Budgets existante est statique : la carte « Budget net » est prête à y être intégrée par la personne en charge du budget.
+- La démonstration (`seed_demo`) appelle `seed_sponsors` sur le « Sommet IA & Data Paris » de l'organisation de démo.

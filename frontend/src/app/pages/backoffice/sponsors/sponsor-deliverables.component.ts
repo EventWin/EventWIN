@@ -81,7 +81,7 @@ import {
             <div class="field"><label>Lien de l'asset</label><input class="in" [(ngModel)]="form.asset_url" placeholder="https://" /></div>
             <div class="form-actions">
               <button type="button" class="btn btn-sm" (click)="editing = null">Annuler</button>
-              <button type="button" class="btn btn-sm btn-ai" (click)="saveEdit()">Enregistrer</button>
+              <button type="button" class="btn btn-sm btn-primary" (click)="saveEdit()">Enregistrer</button>
             </div>
           </div>
         }

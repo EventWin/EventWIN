@@ -36,7 +36,7 @@ def test_portal_link_requires_signed_deal(event_a, org_a, organizer_a):
 
 def test_portal_link_requires_organizer(signed_deal, attendee):
     assert link_for(signed_deal, api_client(attendee)).status_code == 403
-    assert link_for(signed_deal, api_client()).status_code == 403
+    assert link_for(signed_deal, api_client()).status_code == 401  # anonyme : non authentifié
 
 
 def test_portal_link_other_org_hidden(signed_deal, organizer_b):

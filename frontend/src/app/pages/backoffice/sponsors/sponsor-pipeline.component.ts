@@ -34,7 +34,7 @@ import {
         @if (!deals.length) {
           <div class="empty"><h4>Aucun dossier dans le pipeline</h4>
             <p>Créez un sponsor et ajoutez-le au pipeline pour suivre sa progression.</p>
-            <button type="button" class="btn btn-sm btn-ai" (click)="state.openSponsorForm()">Nouveau sponsor</button></div>
+            <button type="button" class="btn btn-sm btn-primary" (click)="state.openSponsorForm()">Nouveau sponsor</button></div>
         } @else {
           <div class="sp-board" role="list">
             @for (col of columns; track col) {

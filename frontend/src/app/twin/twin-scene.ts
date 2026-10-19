@@ -14,13 +14,13 @@ export type SceneSelection =
   | { kind: 'zone'; id: 'overflow' | 'catering' | 'stage' | 'pickup' | 'destination' };
 
 const COLORS = {
-  gain: 0x0fa97d,
-  warn: 0xe0940b,
-  risk: 0xe8455f,
-  unknown: 0x9aa3bf,
-  violet: 0x7c5cff,
-  cyan: 0x22d3ee,
-  blue: 0x3b82f6
+  gain: 0x12936e,
+  warn: 0xc7820a,
+  risk: 0xd93f5a,
+  unknown: 0x9a9eab,
+  violet: 0x6355e8,
+  cyan: 0x38bdf8,
+  blue: 0x3b6fe6
 };
 
 export function fitColor(score: number | null): number {
@@ -77,7 +77,7 @@ export class TwinScene {
   private disposed = false;
   private dark = false;
   private groundMat: THREE.MeshStandardMaterial | null = null;
-  private groundLight = 0xdfe4ef;
+  private groundLight = 0xe7e5dd;
   private themed: { mat: THREE.MeshStandardMaterial; light: number; dark: number }[] = [];
 
   constructor(private readonly host: HTMLElement, dark: boolean) {
@@ -136,10 +136,10 @@ export class TwinScene {
 
   setTheme(dark: boolean): void {
     this.dark = dark;
-    const bg = new THREE.Color(dark ? 0x0d1120 : 0xeef1f9);
+    const bg = new THREE.Color(dark ? 0x0d0e13 : 0xf1f0ea);
     this.scene.background = bg;
     this.scene.fog = new THREE.Fog(bg, 90, 260);
-    this.groundMat?.color.setHex(dark ? 0x1a2033 : this.groundLight);
+    this.groundMat?.color.setHex(dark ? 0x1c1f28 : this.groundLight);
     this.themed.forEach((t) => t.mat.color.setHex(dark ? t.dark : t.light));
   }
 
@@ -370,7 +370,7 @@ export class TwinScene {
 
   private ground(size: number, color: number): void {
     this.groundLight = color;
-    this.groundMat = this.mat(this.dark ? 0x1a2033 : color, { roughness: 0.95 });
+    this.groundMat = this.mat(this.dark ? 0x1c1f28 : color, { roughness: 0.95 });
     const g = new THREE.Mesh(new THREE.PlaneGeometry(size, size), this.groundMat);
     g.rotation.x = -Math.PI / 2;
     g.receiveShadow = true;
@@ -429,7 +429,7 @@ export class TwinScene {
     const groundSize = Math.max(70, totalWidth + 50);
     const left = -(totalWidth / 2 + 12);
     const right = totalWidth / 2 + 12;
-    this.ground(groundSize, 0xdfe4ef);
+    this.ground(groundSize, 0xe7e5dd);
 
     // Parking apron and road.
     const asphalt = this.mat(0x5a6178, { roughness: 0.92 });
@@ -617,7 +617,7 @@ export class TwinScene {
     const hallW = Math.max(16, blockW + 6);
     const hallD = Math.max(18, rows * rowD + 11);
     const groundSize = Math.max(80, hallW + 50, hallD + 50);
-    this.ground(groundSize, 0xe4e8f1);
+    this.ground(groundSize, 0xe9e7e0);
 
     const floorMat = this.mat(0xd8cbb5, { roughness: 0.7 });
     const floor = this.box(hallW, 0.1, hallD, floorMat, 0, 0.05, 0);
@@ -644,7 +644,7 @@ export class TwinScene {
     this.layers.structure.add(stage);
     this.register({ kind: 'zone', id: 'stage' }, [stage], new THREE.Vector3(0, 0, stageZ));
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(hallW - 4, 9), 3.2),
-      new THREE.MeshStandardMaterial({ color: 0x7c5cff, emissive: 0x3b82f6, emissiveIntensity: 0.55, roughness: 0.3 }));
+      new THREE.MeshStandardMaterial({ color: 0x6355e8, emissive: 0x38bdf8, emissiveIntensity: 0.45, roughness: 0.3 }));
     screen.position.set(0, 2.9, -hallD / 2 + 0.15);
     this.layers.structure.add(screen);
     this.layers.structure.add(this.box(0.7, 1.1, 0.5, this.mat(0xf7f8fc), 2.4, 1.25, stageZ));

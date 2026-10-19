@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, throwError } from 'rxjs';
 import {
@@ -11,17 +11,12 @@ import {
 const BASE = '/api';
 
 /**
- * Tous les appels du module sponsors. L'en-tête X-Participant-Id est ajouté ici (et seulement ici) :
- * le projet n'a pas d'interceptor global. Voir docs/sponsors.md pour les limites de ce mécanisme.
+ * Tous les appels du module sponsors. L'authentification (jeton) est ajoutée par
+ * l'intercepteur global de l'application : aucun en-tête d'identité n'est géré ici.
  */
 @Injectable({ providedIn: 'root' })
 export class SponsorsDataService {
   private readonly http = inject(HttpClient);
-
-  private headers(): HttpHeaders {
-    const id = localStorage.getItem('participant_id') || '';
-    return new HttpHeaders(id ? { 'X-Participant-Id': id } : {});
-  }
 
   private opts(params?: Record<string, string | undefined | null>) {
     let httpParams = new HttpParams();
@@ -30,7 +25,7 @@ export class SponsorsDataService {
         httpParams = httpParams.set(key, value);
       }
     }
-    return { headers: this.headers(), params: httpParams };
+    return { params: httpParams };
   }
 
   private wrap<T>(source: Observable<T>): Observable<T> {

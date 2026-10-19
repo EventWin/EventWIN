@@ -1,31 +1,52 @@
-from django.core.exceptions import ValidationError as DjangoValidationError
+"""Permissions du module sponsors, branchées sur l'authentification du projet.
+
+L'acteur est l'utilisateur **authentifié** (jeton DRF / session), jamais un
+en-tête fourni par le client : l'ancien en-tête ``X-Participant-Id`` était
+falsifiable et n'est plus lu. Les règles de rôle sont celles de
+``apps.core.permissions`` : organisateur **actif**, ou super-administrateur
+Django (qui n'a pas forcément de profil ``Participant``).
+"""
 from rest_framework.permissions import BasePermission
 
+from apps.core.permissions import is_super_admin, profile_of
 from apps.participants.models import Participant
 
-ORGANIZER_ROLES = ('organizer', 'admin')
+
+class SuperAdminActor:
+    """Super-administrateur sans profil ``Participant``.
+
+    Il voit et gère tout, mais ne peut pas être enregistré comme auteur, ni
+    responsable d'un dossier : ``as_participant`` le convertit en ``None``.
+    """
+
+    id = pk = None
+    organization = organization_id = None
+    role = 'admin'
+
+    def __init__(self, user):
+        self.user = user
 
 
 def get_acting_participant(request):
-    """Resolve the acting Participant from the provisional X-Participant-Id header."""
-    raw = request.headers.get('X-Participant-Id') or request.META.get('HTTP_X_PARTICIPANT_ID')
-    if not raw:
+    """Acteur de la requête : profil de l'utilisateur authentifié (ou super-admin)."""
+    user = getattr(request, 'user', None)
+    if not user or not user.is_authenticated:
         return None
-    try:
-        return (
-            Participant.objects
-            .select_related('user', 'organization')
-            .filter(pk=raw)
-            .first()
-        )
-    except (ValueError, TypeError, DjangoValidationError):
-        return None
+    profile = profile_of(user)
+    if profile is not None:
+        return profile
+    return SuperAdminActor(user) if is_super_admin(user) else None
+
+
+def as_participant(actor):
+    """Valeur enregistrable dans une clé étrangère vers ``Participant``."""
+    return actor if isinstance(actor, Participant) else None
 
 
 def is_admin(participant):
     if participant is None:
         return False
-    if participant.role == 'admin':
+    if isinstance(participant, SuperAdminActor):
         return True
     user = getattr(participant, 'user', None)
     return bool(user is not None and user.is_superuser)
@@ -34,9 +55,9 @@ def is_admin(participant):
 def is_organizer_or_admin(participant):
     if participant is None:
         return False
-    if participant.role in ORGANIZER_ROLES:
+    if is_admin(participant):
         return True
-    return is_admin(participant)
+    return bool(getattr(participant, 'is_organizer', False))
 
 
 class IsOrganizerOrAdmin(BasePermission):

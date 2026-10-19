@@ -2,6 +2,7 @@ import { Component, HostListener } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { TopbarComponent } from '../topbar/topbar.component';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-main-layout',
@@ -22,9 +23,16 @@ import { TopbarComponent } from '../topbar/topbar.component';
   `
 })
 export class MainLayoutComponent {
+  constructor(private auth: AuthService) {}
+
   ngOnInit() {
-    const role = localStorage.getItem('participant_role') || 'client';
-    document.body.setAttribute('data-role', role);
+    // Réaligne le rôle affiché sur la vérité serveur (anti-altération locale).
+    this.auth.refresh();
+
+    // Le thème visuel suit le rôle dès qu'il change (y compris après refresh).
+    this.auth.state$.subscribe((state) => {
+      document.body.setAttribute('data-role', state.role || 'client');
+    });
   }
 
   @HostListener('document:keydown.escape')

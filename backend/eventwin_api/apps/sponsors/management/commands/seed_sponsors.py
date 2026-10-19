@@ -53,17 +53,28 @@ class Command(BaseCommand):
         parser.add_argument('--event', help="UUID de l'événement (par défaut : le premier événement d'une organisation avec organisateur).")
 
     def handle(self, *args, **options):
-        organizer = (
-            Participant.objects.filter(role='organizer', organization__isnull=False).select_related('organization').first()
-            or Participant.objects.filter(role='admin', organization__isnull=False).select_related('organization').first()
-        )
-        if organizer is None:
-            raise CommandError("Aucun organisateur rattaché à une organisation : créez-en un d'abord.")
-        organization = organizer.organization
-        events = Event.objects.filter(organization=organization)
-        event = events.filter(pk=options['event']).first() if options.get('event') else events.order_by('start_date').first()
-        if event is None:
-            raise CommandError("Aucun événement trouvé pour l'organisation de l'organisateur.")
+        if options.get('event'):
+            # Événement explicite : on travaille dans **son** organisation.
+            event = Event.objects.select_related('organization').filter(pk=options['event']).first()
+            if event is None:
+                raise CommandError("Événement introuvable.")
+            organization = event.organization
+            organizer = (
+                Participant.objects.filter(role='organizer', organization=organization).first()
+            )
+            if organizer is None:
+                raise CommandError("Aucun organisateur dans l'organisation de cet événement.")
+        else:
+            organizer = (
+                Participant.objects.filter(role='organizer', organization__isnull=False)
+                .select_related('organization').first()
+            )
+            if organizer is None:
+                raise CommandError("Aucun organisateur rattaché à une organisation : créez-en un d'abord.")
+            organization = organizer.organization
+            event = Event.objects.filter(organization=organization).order_by('start_date').first()
+            if event is None:
+                raise CommandError("Aucun événement trouvé pour l'organisation de l'organisateur.")
 
         packages = {}
         for spec in PACKAGES:

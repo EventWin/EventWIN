@@ -1,10 +1,22 @@
 from rest_framework import serializers
 
+from apps.organizations.models import Organization
+
 from .models import Event, EventScheduleItem, Resource
 
 
 class EventSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
+    owner_name = serializers.CharField(source='owner.username', read_only=True)
+    # Compteur réellement calculé depuis les inscriptions — jamais stocké.
+    registered_count = serializers.IntegerField(read_only=True)
+    # ``True`` quand ``capacity`` pose une limite réelle (0 = illimité).
+    has_capacity_limit = serializers.BooleanField(read_only=True)
+    # L'organisation est fixée par la vue (profil de l'organisateur) : le
+    # client ne peut pas rattacher un événement à une organisation étrangère.
+    organization = serializers.PrimaryKeyRelatedField(
+        queryset=Organization.objects.all(), required=False
+    )
 
     class Meta:
         model = Event
@@ -12,6 +24,8 @@ class EventSerializer(serializers.ModelSerializer):
             'id',
             'organization',
             'organization_name',
+            'owner',
+            'owner_name',
             'name',
             'event_type',
             'event_format',
@@ -22,6 +36,9 @@ class EventSerializer(serializers.ModelSerializer):
             'accessibility_level',
             'route_or_logistics_notes',
             'status',
+            'capacity',
+            'has_capacity_limit',
+            'registered_count',
             'start_date',
             'end_date',
             'location',
@@ -36,7 +53,7 @@ class EventSerializer(serializers.ModelSerializer):
             'bus_vip_capacity',
             'created_at',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'owner', 'owner_name', 'registered_count']
 
 
 class EventScheduleItemSerializer(serializers.ModelSerializer):

@@ -84,7 +84,7 @@ export interface ApiBudgetCategory {
   budget: string;
   name: string;
   planned_amount: string;
-  actual_amount: string;
+  actual_amount: string | null;
 }
 
 export interface ApiScenario {
@@ -127,9 +127,32 @@ export interface FitFactor {
 
 export type FitFactorKey = 'interests' | 'transport' | 'diet' | 'accessibility' | 'accommodation' | 'schedule';
 
+/** Évaluation Gemini (serveur) d'un participant pour cet événement. */
+export interface AiFit {
+  score: number | null;
+  base_score: number | null;
+  capped: boolean;
+  verdict: { key: string; label: string };
+  dimensions: Record<string, { score: number | null; note: string }>;
+  blockers: { constraint: string; reason: string }[];
+  strengths: string[];
+  risks: string[];
+  adaptations: string[];
+  summary: string;
+  comparison?: string;
+  analyzed_at: string;
+  model: string;
+}
+
 export interface FitResult {
   /** null when too little declared data to justify a score. */
   score: number | null;
+  /** Origine du score : évaluation Gemini, ou règles locales à défaut. */
+  source: 'gemini' | 'rules';
+  /** Détail Gemini quand il existe ; les facteurs restent des contrôles logistiques. */
+  ai?: AiFit;
+  /** Score des règles locales, conservé pour comparaison. */
+  rulesScore?: number | null;
   /** Share of total weight that could be evaluated (0..1). */
   confidence: number;
   factors: FitFactor[];

@@ -1,5 +1,8 @@
-import { Component, ViewEncapsulation, inject } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { EventContextService } from '../../../twin/event-context.service';
 import { SponsorsStateService } from '../../../sponsors/sponsors-state.service';
 import { SponsorDealPanelComponent } from './sponsor-deal-panel.component';
 import { SponsorFormComponent } from './sponsor-form.component';
@@ -8,16 +11,25 @@ import { SponsorFormComponent } from './sponsor-form.component';
 @Component({
   selector: 'app-sponsors',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, SponsorDealPanelComponent, SponsorFormComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, SponsorDealPanelComponent, SponsorFormComponent],
   encapsulation: ViewEncapsulation.None,
   template: `
     <div class="page-head">
       <div>
+        <div class="eyebrow">Financement</div>
         <h1 class="title">Sponsors</h1>
         <p class="lede">Pipeline de financement, contreparties et paiements des sponsors de votre événement.</p>
       </div>
       <div class="acts">
-        <button type="button" class="btn btn-ai btn-sm" (click)="state.openSponsorForm()">Nouveau sponsor</button>
+        <label class="sp-event-pick">
+          <span>Événement</span>
+          <select class="in" (change)="pick($any($event.target).value)" aria-label="Événement sponsorisé">
+            <option value="" disabled [selected]="!context.current">{{ events.length ? 'Choisir un événement' : 'Aucun événement' }}</option>
+            <!-- [selected] par option : la liste arrive après le rendu initial. -->
+            <option *ngFor="let e of events" [value]="e.id" [selected]="e.id === context.current?.id">{{ e.name }}</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-primary btn-sm" (click)="state.openSponsorForm()">Nouveau sponsor</button>
       </div>
     </div>
 
@@ -36,6 +48,8 @@ import { SponsorFormComponent } from './sponsor-form.component';
     <sp-sponsor-form></sp-sponsor-form>
   `,
   styles: [`
+    .sp-event-pick{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--tx-3)}
+    .sp-event-pick .in{width:auto;min-width:240px;padding:8px 34px 8px 12px;font-size:13px}
     .sp-tabs{display:flex;gap:3px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto}
     .sp-tabs a{padding:11px 15px;font-size:13.5px;color:var(--tx-2);border-bottom:2px solid transparent;white-space:nowrap}
     .sp-tabs a:hover{color:var(--tx)}
@@ -56,9 +70,9 @@ import { SponsorFormComponent } from './sponsor-form.component';
     .sp-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .sp-link{color:var(--violet);font-weight:500;cursor:pointer;background:none;border:0;padding:0}
     .sp-link:hover{text-decoration:underline}
-    .sp-money{font-family:"Space Grotesk",sans-serif;font-variant-numeric:tabular-nums;font-weight:600;color:var(--tx)}
+    .sp-money{font-family:var(--font-ui);font-variant-numeric:tabular-nums;font-weight:600;color:var(--tx)}
     .sp-avatar{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:none;overflow:hidden;
-      background:var(--sub);color:var(--tx-2);font:700 11px "Space Grotesk",sans-serif}
+      background:var(--sub);color:var(--tx-2);font:700 11px var(--font-ui)}
     .sp-avatar img{width:100%;height:100%;object-fit:cover}
     .sp-who{display:flex;align-items:center;gap:10px}
     .sp-who small{display:block;font-size:11.5px;color:var(--tx-3)}
@@ -93,6 +107,8 @@ import { SponsorFormComponent } from './sponsor-form.component';
     .sp-card h4{font-size:13.8px;font-weight:600}
     .sp-card-top{display:flex;gap:10px;align-items:center}
     .sp-card-meta{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tx-2);gap:8px}
+    .sp-card-meta>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .sp-card h4{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .sp-lost{margin-top:18px}
 
     .sp-overlay{position:fixed;inset:0;background:rgba(11,13,24,.45);z-index:80}
@@ -115,12 +131,33 @@ import { SponsorFormComponent } from './sponsor-form.component';
     .sp-benefit-row{display:grid;grid-template-columns:1.1fr 1.6fr .7fr auto;gap:8px;margin-bottom:8px;align-items:center}
     .sp-crit{display:grid;grid-template-columns:150px 1fr 40px;gap:10px;align-items:center;font-size:12.5px;margin:7px 0}
     .sp-crit small{grid-column:1/-1;color:var(--tx-3);margin-top:-4px}
-    .sp-score{font:600 20px "Space Grotesk",sans-serif}
+    .sp-score{font:600 20px var(--font-ui)}
     .sp-dup{border:1px solid rgba(224,148,11,.5);background:rgba(224,148,11,.08);border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:13px}
     .sp-dup ul{margin:6px 0 10px 18px}
     @media (max-width:900px){.sp-stats{grid-template-columns:1fr 1fr}.sp-cols{grid-template-columns:1fr}.sp-two{grid-template-columns:1fr}}
   `]
 })
-export class SponsorsComponent {
+export class SponsorsComponent implements OnInit {
   protected readonly state = inject(SponsorsStateService);
+  protected readonly context = inject(EventContextService);
+  private readonly http = inject(HttpClient);
+  protected events: { id: string; name: string; status: string; start_date: string | null }[] = [];
+
+  ngOnInit(): void {
+    // Même sélection d'événement que le reste de l'application (jumeau, budget…).
+    // À défaut, le prochain événement publié est proposé d'office.
+    this.http.get<typeof this.events>('/api/events/').subscribe(events => {
+      this.events = events.filter(e => e.status !== 'cancelled');
+      const current = this.context.current;
+      if (!current || !this.events.some(e => e.id === current.id)) {
+        const next = this.events.find(e => e.status === 'published') ?? this.events[0];
+        if (next) this.context.select(next.id, next.name);
+      }
+    });
+  }
+
+  protected pick(id: string): void {
+    const event = this.events.find(e => e.id === id);
+    if (event) this.context.select(event.id, event.name);
+  }
 }

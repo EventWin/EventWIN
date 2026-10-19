@@ -134,7 +134,7 @@ export abstract class SponsorPageBase implements OnInit, OnDestroy {
             <label>Envoyer par e-mail à</label>
             <div class="sp-row">
               <input class="in" type="email" [(ngModel)]="email" placeholder="contact@sponsor.com" />
-              <button type="button" class="btn btn-sm btn-ai" [disabled]="sending || !email" (click)="send()">
+              <button type="button" class="btn btn-sm btn-primary" [disabled]="sending || !email" (click)="send()">
                 {{ sending ? 'Envoi…' : 'Envoyer' }}
               </button>
             </div>

@@ -65,7 +65,7 @@ type Tab = 'summary' | 'deliverables' | 'payments' | 'history';
             <div class="field"><label>Faire avancer le dossier</label>
               <div class="row-actions">
                 @for (status of allowed; track status) {
-                  <button type="button" class="btn btn-sm" [class.btn-ai]="status !== 'lost'" [class.btn-danger]="status === 'lost'"
+                  <button type="button" class="btn btn-sm" [class.btn-primary]="status !== 'lost'" [class.btn-danger]="status === 'lost'"
                           (click)="transition(status)">{{ statusLabels[status] }}</button>
                 }
               </div>

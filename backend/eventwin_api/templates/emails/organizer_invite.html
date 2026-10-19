@@ -1,28 +1,33 @@
 <div style="font-family: Arial, sans-serif; text-align: center; background-color: #F6F7FC; padding: 40px; color: #161A2E;">
     <div style="background-color: #FFFFFF; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 20px; box-shadow: 0 12px 32px -14px rgba(22,26,46,0.16);">
-        
+
         <h1 style="font-size: 24px; color: #161A2E;">Bienvenue dans l'équipe, {{ full_name }} !</h1>
-        
+
         <p style="color: #5A6183; font-size: 16px; line-height: 1.5;">
             Vous avez été invité par l'Administrateur à rejoindre la plateforme EventTwin en tant qu'<strong>Organisateur</strong>.
         </p>
 
         <div style="background-color: #F6F7FC; border-radius: 10px; padding: 20px; margin: 30px 0; text-align: left;">
-            <p style="margin: 0 0 10px 0; color: #5A6183;">Voici vos accès temporaires :</p>
-            <p style="margin: 5px 0;"><strong>E-mail :</strong> {{ email }}</p>
-            <p style="margin: 5px 0;"><strong>Mot de passe :</strong> <span style="background: #161A2E; color: #FFF; padding: 3px 8px; border-radius: 4px; letter-spacing: 2px;">{{ password }}</span></p>
+            <p style="margin: 0 0 10px 0; color: #5A6183;">E-mail du compte :</p>
+            <p style="margin: 5px 0;"><strong>{{ email }}</strong></p>
         </div>
 
         <p style="color: #5A6183; font-size: 16px; margin-bottom: 30px;">
-            Connectez-vous à votre tableau de bord Organisateur pour gérer vos événements.
+            Choisissez votre propre mot de passe en ouvrant le lien ci-dessous
+            (valable {{ expires_hours }} heures, à usage unique) :
         </p>
-        
-        <a href="http://localhost:4200/organizer-login" style="background: linear-gradient(115deg, #10B981, #3B82F6); color: white; padding: 15px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; display: inline-block;">
-            Accéder à mon espace Organisateur
+
+        <a href="{{ activation_url }}" style="background: linear-gradient(115deg, #10B981, #3B82F6); color: white; padding: 15px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; display: inline-block;">
+            Activer mon compte organisateur
         </a>
+
+        <p style="color: #9CA3C0; font-size: 12px; margin-top: 24px;">
+            Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
+            {{ activation_url }}
+        </p>
     </div>
-    
+
     <p style="color: #9CA3C0; font-size: 12px; margin-top: 20px;">
-        Cet email est généré automatiquement par EventTwin.
+        Cet email est généré automatiquement par EventTwin. Aucun mot de passe ne vous sera jamais transmis par e-mail.
     </p>
 </div>

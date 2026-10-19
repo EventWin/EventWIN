@@ -1,0 +1,61 @@
+<div class="auth">
+  <div class="auth-story">
+    <a class="logo" routerLink="/"><div class="mark"></div><span>Event<em>Twin</em></span></a>
+
+    <div>
+      <div class="eyebrow">Connexion unique</div>
+      <h1 class="auth-head">Un seul accès, <span>votre espace</span> s’adapte à vous.</h1>
+      <p class="auth-sub">
+        Connectez-vous une seule fois : EventTwin reconnaît votre rôle et ouvre directement votre espace —
+        le jumeau numérique 3D pour les organisateurs, votre profil pour les participants.
+      </p>
+    </div>
+
+    <div class="login-twin">
+      <app-landing-twin class="login-canvas"></app-landing-twin>
+      <small>Aperçu du jumeau numérique 3D</small>
+    </div>
+  </div>
+
+  <div class="auth-panel">
+    <form class="auth-card" (ngSubmit)="onLogin()">
+      <h2>Connexion</h2>
+      <p>Entrez vos identifiants — votre rôle est déterminé par le serveur.</p>
+
+      <div class="field">
+        <label for="lg-mail">Adresse e-mail</label>
+        <input class="in" id="lg-mail" name="email" type="email" [(ngModel)]="email"
+               placeholder="vous@entreprise.com" autocomplete="email" required>
+      </div>
+
+      <div class="field">
+        <label for="lg-pass">Mot de passe</label>
+        <div class="pass">
+          <input class="in" id="lg-pass" name="password" [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password"
+                 placeholder="Votre mot de passe" autocomplete="current-password" required>
+          <button type="button" class="pass-toggle" (click)="showPassword = !showPassword"
+                  [attr.aria-label]="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+            {{ showPassword ? 'Masquer' : 'Afficher' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="inline" style="justify-content: flex-end;">
+        <a class="link" routerLink="/reset">Mot de passe oublié ?</a>
+      </div>
+
+      <p class="form-error" role="alert" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+      <button class="btn btn-primary btn-lg" type="submit" [disabled]="loading">
+        {{ loading ? 'Connexion…' : 'Se connecter' }}
+      </button>
+
+      <div class="sep">ou</div>
+
+      <p class="alt">
+        Pas encore de compte ?
+        <a class="link" routerLink="/participant-register">Créer un compte participant</a>
+      </p>
+    </form>
+  </div>
+</div>

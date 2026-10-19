@@ -25,11 +25,11 @@ const blank = (): PackageForm => ({
     <sp-state [event]="event" [loading]="loading" [error]="error" [forbidden]="forbidden" [hasContent]="loaded" (retry)="reload()">
       @if (loaded) {
         <div class="sp-toolbar"><span class="muted">{{ packages.length }} package(s)</span><span class="spacer"></span>
-          <button type="button" class="btn btn-sm btn-ai" (click)="openForm(null)">Nouveau package</button></div>
+          <button type="button" class="btn btn-sm btn-primary" (click)="openForm(null)">Nouveau package</button></div>
 
         @if (!packages.length) {
           <div class="empty"><h4>Aucun package</h4><p>Définissez vos offres (Or, Argent, Bronze…) avec leur prix et leurs contreparties.</p>
-            <button type="button" class="btn btn-sm btn-ai" (click)="openForm(null)">Créer un package</button></div>
+            <button type="button" class="btn btn-sm btn-primary" (click)="openForm(null)">Créer un package</button></div>
         } @else {
           <div class="sp-pkg-grid">
             @for (p of packages; track p.id) {
@@ -88,7 +88,7 @@ const blank = (): PackageForm => ({
             </div>
             <div class="form-actions">
               <button type="button" class="btn btn-sm" (click)="formOpen = false">Annuler</button>
-              <button type="button" class="btn btn-sm btn-ai" [disabled]="saving" (click)="save()">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button>
+              <button type="button" class="btn btn-sm btn-primary" [disabled]="saving" (click)="save()">{{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button>
             </div>
           </div>
         }

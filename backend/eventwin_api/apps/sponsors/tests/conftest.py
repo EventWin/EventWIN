@@ -18,6 +18,8 @@ def org_b(db):
 
 
 def _participant(username, email, role, organization=None, is_superuser=False):
+    # ``role`` suit les choix du modèle (participant / organizer) : un
+    # administrateur est un super-utilisateur Django.
     user = User.objects.create_user(
         username=username,
         email=email,
@@ -54,7 +56,13 @@ def attendee(org_a):
 
 @pytest.fixture
 def admin_user(org_a):
-    return _participant('admin', 'admin@test.local', 'admin', org_a, is_superuser=True)
+    return _participant('admin', 'admin@test.local', 'organizer', org_a, is_superuser=True)
+
+
+@pytest.fixture
+def superadmin_no_profile(db):
+    """Super-administrateur Django sans profil Participant (cas réel du projet)."""
+    return User.objects.create_superuser('root', 'root@test.local', 'pass1234')
 
 
 @pytest.fixture
@@ -62,7 +70,7 @@ def event_a(org_a):
     return Event.objects.create(
         organization=org_a,
         name='Sommet Alpha',
-        status='confirmed',
+        status='published',
         start_date='2026-06-01',
         end_date='2026-06-03',
         target_budget='20000.00',
@@ -75,7 +83,7 @@ def event_b(org_b):
     return Event.objects.create(
         organization=org_b,
         name='Forum Beta',
-        status='confirmed',
+        status='published',
         start_date='2026-09-01',
         end_date='2026-09-02',
         target_budget='8000.00',
@@ -84,7 +92,11 @@ def event_b(org_b):
 
 
 def api_client(participant=None):
+    """Client authentifié comme le ferait le jeton DRF du projet.
+
+    Accepte un ``Participant`` ou directement un ``User`` (super-admin sans profil).
+    """
     client = APIClient()
     if participant is not None:
-        client.credentials(HTTP_X_PARTICIPANT_ID=str(participant.id))
+        client.force_authenticate(user=getattr(participant, 'user', participant))
     return client

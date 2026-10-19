@@ -298,6 +298,7 @@ def test_lost_requires_reason_and_can_reopen(event_a, org_a):
 def test_signing_generates_deliverables_and_payments(event_a, org_a):
     start = date.today() + timedelta(days=90)
     event_a.start_date = start
+    event_a.end_date = start + timedelta(days=2)  # contrainte : fin ≥ début
     event_a.save()
     pkg = make_package(event_a, benefits=[
         {'type': 'logo_placement', 'title': 'Logo sur le site', 'offset_days': -20},
@@ -405,6 +406,7 @@ def test_exposure_custom_weights(event_a, org_a):
 def test_balance_due_date_never_before_signature(event_a, org_a):
     """Événement dans moins de 30 jours : le solde est dû à la signature, pas dans le passé."""
     event_a.start_date = date.today() + timedelta(days=10)
+    event_a.end_date = event_a.start_date + timedelta(days=2)  # contrainte : fin ≥ début
     event_a.save()
     deal = make_deal(event_a, make_sponsor(org_a), 'negotiating', '1000')
     services.transition_deal(deal, 'signed')

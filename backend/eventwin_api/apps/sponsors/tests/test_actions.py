@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from apps.budgets.models import Budget, BudgetCategory, CostItem
+from apps.budgets.models import BudgetItem
 from apps.simulation.models import Scenario
 from apps.sponsors.models import SponsorDeliverable, SponsorPayment, SponsorshipActivity, SponsorshipDeal
 from apps.sponsors.tests.conftest import api_client
@@ -138,7 +138,7 @@ def test_event_param_validation_and_scoping(event_a, event_b, organizer_a):
     'sponsorship-summary', 'sponsorship-recommendations', 'sponsorship-conflicts', 'sponsorship-alerts', 'sponsorship-net-budget',
 ])
 def test_analysis_endpoints_require_organizer(url, event_a, attendee):
-    assert api_client().get(f'/api/{url}/?event={event_a.id}').status_code == 403
+    assert api_client().get(f'/api/{url}/?event={event_a.id}').status_code == 401
     assert api_client(attendee).get(f'/api/{url}/?event={event_a.id}').status_code == 403
 
 
@@ -343,26 +343,36 @@ def test_refresh_overdue_payments(event_a, org_a):
 
 # ------------------------------------------------------------ budget net / scénario
 
+def _priced_item(event, name, total):
+    return BudgetItem.objects.create(
+        event=event, name=name, quantity=1, unit_price=Decimal(total), total=Decimal(total),
+        price_source='ai_estimate', analysis_status='priced',
+    )
+
+
 def test_net_budget_reads_budget_without_writing(event_a, org_a, organizer_a):
-    budget = Budget.objects.create(event=event_a, name='B1', total_budget=0)
-    cat = BudgetCategory.objects.create(budget=budget, name='Hébergement', planned_amount=Decimal('0'))
-    CostItem.objects.create(budget_category=cat, name='Hôtel', planned_cost=Decimal('6000'))
-    BudgetCategory.objects.create(budget=budget, name='Salle', planned_amount=Decimal('4000'))
+    # Coût estimé = ressources chiffrées du module Budget (même calcul que la page Budget).
+    _priced_item(event_a, 'Hôtel', '6000')
+    _priced_item(event_a, 'Salle', '4000')
     make_deal(event_a, make_sponsor(org_a, 'A'), 'signed', '3000', signed_at=date.today())
     make_deal(event_a, make_sponsor(org_a, 'B'), 'negotiating', '2000', probability_percent=50)
-    before = (Budget.objects.count(), BudgetCategory.objects.count(), CostItem.objects.count())
+    before = BudgetItem.objects.count()
     res = api_client(organizer_a).get(f'/api/sponsorship-net-budget/?event={event_a.id}')
     assert res.status_code == 200
     d = res.data
     assert d['planned_cost'] == 10000 and d['confirmed_sponsorship'] == 3000
     assert d['net_pessimistic'] == 7000 and d['net_weighted'] == 6000 and d['net_optimistic'] == 5000
-    assert before == (Budget.objects.count(), BudgetCategory.objects.count(), CostItem.objects.count())
+    assert d['target_budget'] == 20000
+    assert before == BudgetItem.objects.count()
 
 
-def test_net_budget_without_budget_and_fallback_total(event_a, organizer_a):
+def test_net_budget_without_priced_items(event_a, organizer_a):
     client = api_client(organizer_a)
-    assert client.get(f'/api/sponsorship-net-budget/?event={event_a.id}').data['has_budget'] is False
-    Budget.objects.create(event=event_a, name='Seul total', total_budget=Decimal('9000'))
+    data = client.get(f'/api/sponsorship-net-budget/?event={event_a.id}').data
+    # Aucun coût chiffré : coût 0, mais le budget cible de la fiche existe.
+    assert data['planned_cost'] == 0 and data['priced_count'] == 0
+    assert data['has_budget'] is True
+    _priced_item(event_a, 'Traiteur', '9000')
     assert client.get(f'/api/sponsorship-net-budget/?event={event_a.id}').data['planned_cost'] == 9000
 
 

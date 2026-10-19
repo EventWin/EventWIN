@@ -18,6 +18,8 @@ from django.db.models import QuerySet
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from apps.participants.models import Participant
+
 from .models import DEAL_STATUS_DEFAULT_PROBABILITY
 
 LEGAL_SUFFIX_RE = re.compile(
@@ -81,7 +83,7 @@ def log_activity(deal, actor, action, message='', **kwargs):
 
     return SponsorshipActivity.objects.create(
         deal=deal,
-        actor=actor,
+        actor=actor if isinstance(actor, Participant) else None,
         action=action,
         message=message or '',
         from_status=kwargs.get('from_status') or '',
@@ -806,30 +808,33 @@ def build_alerts(event, today=None, now=None, inactivity_days=14, horizon_days=7
 # ---------------------------------------------------------------------------
 
 def net_budget(event, budget_id=None):
-    """Budget net = coûts prévus (lecture seule de l'app budgets) - sponsoring."""
-    from apps.budgets.models import Budget
+    """Budget net = coût estimé de l'événement − financement des sponsors.
 
-    budgets = Budget.objects.filter(event=event).order_by('-created_at')
-    budget = budgets.filter(pk=budget_id).first() if budget_id else budgets.first()
+    Le coût vient du module Budget actuel (ressources ``BudgetItem`` chiffrées,
+    même calcul que la page Budget : ``calculate_budget``) ; le budget cible
+    est ``Event.target_budget``. ``budget_id`` est conservé pour compatibilité
+    d'API mais n'a plus d'effet : un événement n'a qu'un budget.
+    """
+    from apps.budgets.calculations import calculate_budget
+    from apps.budgets.models import BudgetItem
 
-    planned = Decimal('0')
-    if budget is not None:
-        for category in budget.categories.prefetch_related('cost_items'):
-            items_total = sum((Decimal(i.planned_cost) for i in category.cost_items.all()), Decimal('0'))
-            planned += Decimal(category.planned_amount) if Decimal(category.planned_amount) > 0 else items_total
-        if planned == 0:
-            planned = Decimal(budget.total_budget or 0)
+    computed = calculate_budget(event, BudgetItem.objects.filter(event=event))
+    planned = Decimal(computed['total'] or 0)
+    target = Decimal(event.target_budget or 0)
 
     summary = pipeline_summary(event)
     confirmed = summary['confirmed_cash']
     weighted = summary['weighted_pipeline']
     best = summary['best_case']
     return {
-        'has_budget': budget is not None,
-        'budget_id': str(budget.id) if budget else None,
-        'budget_name': budget.name if budget else '',
-        'currency': budget.currency if budget else 'EUR',
+        'has_budget': computed['priced_count'] > 0 or target > 0,
+        'budget_id': str(event.pk),
+        'budget_name': f'Budget — {event.name}',
+        'currency': getattr(settings, 'BUDGET_CURRENCY', '') or 'EUR',
+        'target_budget': _money(target),
         'planned_cost': _money(planned),
+        'cost_incomplete': bool(computed['incomplete']),
+        'priced_count': computed['priced_count'],
         'confirmed_sponsorship': confirmed,
         'weighted_sponsorship': weighted,
         'best_case_sponsorship': best,
@@ -973,7 +978,7 @@ def import_sponsors_csv(organization, actor, text):
         try:
             with transaction.atomic():
                 Sponsor.objects.create(
-                    organization=organization, created_by=actor, name=name, industry=industry,
+                    organization=organization, created_by=actor if isinstance(actor, Participant) else None, name=name, industry=industry,
                     contact_name=row.get('contact_name', '') or name, contact_email=email,
                     website=website, country=row.get('country', ''),
                 )

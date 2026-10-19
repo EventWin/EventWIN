@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ParticipantService } from '../../../services/participant.service';
+import { AuthService } from '../../../services/auth.service';
 import { Router } from '@angular/router';
 
 @Component({
@@ -54,13 +55,14 @@ export class ParticipantProfileComponent implements OnInit {
 
   constructor(
     private participantService: ParticipantService,
+    private authService: AuthService,
     private router: Router
   ) {}
 
   ngOnInit() {
     const id = localStorage.getItem('participant_id');
     if (!id) {
-      this.router.navigate(['/participant-login']);
+      this.router.navigate(['/login']);
       return;
     }
 
@@ -71,7 +73,7 @@ export class ParticipantProfileComponent implements OnInit {
         if (data.constraints) this.savedConstraints = data.constraints;
       },
       error: () => {
-        this.router.navigate(['/participant-login']);
+        this.router.navigate(['/login']);
       }
     });
   }
@@ -115,9 +117,9 @@ export class ParticipantProfileComponent implements OnInit {
     if (confirm('Voulez-vous vraiment supprimer votre compte ? Cette action est irréversible.')) {
       this.participantService.deleteParticipant(this.participant.id).subscribe({
         next: () => {
-          localStorage.removeItem('participant_id');
-          localStorage.removeItem('participant_role');
-          this.router.navigate(['/participant-login']);
+          // Purge complète de la session locale (jeton + identité).
+          this.authService.clear();
+          this.router.navigate(['/login']);
         }
       });
     }

@@ -41,7 +41,7 @@ const EMPTY: Form = {
             <ul>@for (d of duplicates; track d.id) { <li>{{ d.name }} ({{ industries[d.industry] }}) · {{ d.contact_email }}</li> }</ul>
             <div class="row-actions">
               <button type="button" class="btn btn-sm" (click)="useExisting(duplicates[0])">Utiliser l'existant</button>
-              <button type="button" class="btn btn-sm btn-ai" (click)="submit(true)">Créer quand même</button>
+              <button type="button" class="btn btn-sm btn-primary" (click)="submit(true)">Créer quand même</button>
             </div>
           </div>
         }
@@ -103,7 +103,7 @@ const EMPTY: Form = {
 
         <div class="form-actions">
           <button type="button" class="btn btn-sm" (click)="close()">Annuler</button>
-          <button type="button" class="btn btn-sm btn-ai" [disabled]="saving" (click)="submit(false)">
+          <button type="button" class="btn btn-sm btn-primary" [disabled]="saving" (click)="submit(false)">
             {{ saving ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer' }}
           </button>
         </div>

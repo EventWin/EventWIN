@@ -1,80 +1,171 @@
-import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../../services/auth.service';
 
+interface DashboardEvent {
+  id: string; name: string; organization_name: string; event_type: string;
+  status: string; status_label: string; start_date: string | null; end_date: string | null;
+  days_until: number | null; finished: boolean; location: string;
+  registered: number; expected: number; capacity: number;
+  budget: number | null; estimated_total: number | null; budget_status: string; usage_rate: number | null;
+  priced_count: number; unpriced_count: number; items_count: number;
+  fit: { average: number; count: number } | null;
+  sponsoring_confirmed: number;
+  sponsoring_weighted: number;
+  net_cost: number | null;
+  sponsor_alerts: { severity: 'error' | 'warning' | string; message: string }[];
+}
+interface Dashboard {
+  scope: 'admin' | 'organizer';
+  totals: {
+    events: number; active: number; drafts: number; upcoming_30d: number; organizations: number;
+    registrations: number; participants: number; expected: number;
+    budget: number; estimated_total: number; over_budget: number; budget_missing: number; without_estimate: number;
+    sponsoring_confirmed: number; sponsoring_weighted: number;
+  };
+  events: DashboardEvent[];
+  activity: { kind: 'registration' | 'event' | 'fit'; at: string; title: string; detail: string; event_id: string | null }[];
+}
+interface Alert { level: 'risk' | 'warn' | 'info'; title: string; detail: string; eventId: string; }
+
+/**
+ * Supervision : portefeuille d'événements calculé par le serveur
+ * (``/api/dashboard/``). Aucun chiffre n'est saisi en dur ici.
+ */
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink],
-  template: `
-    <div class="page-head">
-      <div>
-        <h1 class="title only-client">Bonjour Léa</h1>
-        <h1 class="title only-admin">Supervision du portefeuille</h1>
-        <p class="lede only-client">Votre séminaire de printemps a 34 jours devant lui. Deux arbitrages vous attendent.</p>
-        <p class="lede only-admin">12 événements actifs, 3 dépassements à arbitrer, 48 simulations cette semaine.</p>
-      </div>
-      <div class="acts">
-        <button class="btn btn-sm">Exporter</button>
-        <button class="btn btn-ai btn-sm" routerLink="/app/optim">Optimiser mon budget</button>
-      </div>
-    </div>
-
-    <div class="only-client">
-      <div class="grid g4">
-        <div class="stat"><div class="lab">Jours restants</div><div class="val n">34</div><div class="foot">Séminaire · 20 avril 2026</div></div>
-        <div class="stat"><div class="lab">Budget engagé</div><div class="val n">68<sup>%</sup></div><div class="foot"><span class="up">27 200 €</span> sur 40 000 €</div></div>
-        <div class="stat"><div class="lab">Inscrits</div><div class="val n">64<sup>/80</sup></div><div class="foot"><span class="up">+9</span> cette semaine</div></div>
-        <div class="stat lit"><div class="lab"><span class="dotlive"></span> Satisfaction prévue</div><div class="val n">82<sup>/100</sup></div><div class="foot">+6 pts possibles selon l'IA</div></div>
-      </div>
-
-      <div class="grid g2 mt">
-        <div class="card">
-          <div class="card-head"><h3>Budget dans le temps</h3><button class="btn btn-sm" routerLink="/app/budgets">Détail</button></div>
-          <svg class="chart" viewBox="0 0 500 200" role="img" aria-label="Consommation du budget comparée au plafond">
-            <defs><linearGradient id="gAI" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#22D3EE"/></linearGradient>
-            <linearGradient id="fAI" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".28"/><stop offset="1" stop-color="#22D3EE" stop-opacity="0"/></linearGradient></defs>
-            <g class="gridline"><line x1="34" y1="30" x2="490" y2="30"/><line x1="34" y1="72" x2="490" y2="72"/><line x1="34" y1="114" x2="490" y2="114"/><line x1="34" y1="156" x2="490" y2="156"/></g>
-            <text class="axis" x="2" y="34">40k</text><text class="axis" x="2" y="76">30k</text><text class="axis" x="2" y="118">20k</text><text class="axis" x="2" y="160">10k</text>
-            <line x1="34" y1="30" x2="490" y2="30" stroke="#E8455F" stroke-dasharray="6 5" stroke-width="1.3" opacity=".8"/>
-            <text class="axis" x="416" y="24" fill="#E8455F">plafond voté</text>
-            <path d="M34 168 L92 160 L150 150 L208 138 L266 124 L324 110 L382 96 L440 84 L490 76 L490 180 L34 180 Z" fill="url(#fAI)"/>
-            <path d="M34 168 L92 160 L150 150 L208 138 L266 124 L324 110 L382 96 L440 84 L490 76" fill="none" stroke="url(#gAI)" stroke-width="2.4" stroke-linecap="round"/>
-            <circle cx="490" cy="76" r="4.5" fill="#22D3EE"/>
-            <text class="axis" x="40" y="196">janv.</text><text class="axis" x="250" y="196">févr.</text><text class="axis" x="450" y="196">mars</text>
-          </svg>
-          <div class="legend"><span><b style="background:var(--ai)"></b> Projection du jumeau</span><span><b style="background:#E8455F"></b> Plafond</span></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><h3>Ce qui bouge</h3></div>
-          <div class="tl">
-            <div class="tl-item"><div class="tl-date">Aujourd'hui</div><div><h4>Le traiteur a révisé son devis</h4><p>+1 400 € sur la restauration. Trois scénarios recalculés.</p></div></div>
-            <div class="tl-item"><div class="tl-date">Hier</div><div><h4>9 nouvelles inscriptions</h4><p>Dont 6 depuis Lyon — le poste transport se tend.</p></div></div>
-            <div class="tl-item"><div class="tl-date">12 mars</div><div><h4>Navettes groupées simulées</h4><p>2 800 € économisés, satisfaction maintenue.</p></div></div>
-            <div class="tl-item"><div class="tl-date">08 mars</div><div><h4>Domaine confirmé</h4><p>Acompte de 6 000 € versé, capacité 100 places.</p></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="only-admin">
-      <div class="grid g4">
-        <div class="stat"><div class="lab">Événements actifs</div><div class="val n">12</div><div class="foot"><span class="up">+3</span> ce trimestre</div></div>
-        <div class="stat"><div class="lab">Volume piloté</div><div class="val n">1,42<sup>M€</sup></div><div class="foot">18 organisations</div></div>
-        <div class="stat"><div class="lab">En dépassement</div><div class="val n">3</div><div class="foot"><span class="down">à arbitrer</span> avant vendredi</div></div>
-        <div class="stat lit"><div class="lab"><span class="dotlive"></span> Économies validées</div><div class="val n">94 300<sup>€</sup></div><div class="foot">sur 48 simulations</div></div>
-      </div>
-      <div class="card mt">
-        <div class="card-head"><h3>Portefeuille</h3><p>trié par urgence</p><button class="btn btn-sm">Filtrer</button></div>
-        <div class="tw"><table>
-          <thead><tr><th>Événement</th><th>Client</th><th>Date</th><th>Budget</th><th>Satisfaction</th><th>État</th></tr></thead>
-          <tbody>
-            <tr><td><b>Séminaire printemps</b></td><td>Atlas Group</td><td class="n">20 avr. 2026</td><td class="n">27,2k / 40k</td><td><span class="chip ai">82 / 100</span></td><td><span class="chip gain">Dans les clous</span></td></tr>
-            <tr><td><b>Lancement Helios</b></td><td>Vertex</td><td class="n">02 oct. 2026</td><td class="n">68,4k / 62k</td><td><span class="chip">74 / 100</span></td><td><span class="chip risk">Dépassement 10 %</span></td></tr>
-            <tr><td><b>Convention annuelle</b></td><td>Nova Events</td><td class="n">14 nov. 2026</td><td class="n">81,6k / 120k</td><td><span class="chip ai">87 / 100</span></td><td><span class="chip gain">Optimisé</span></td></tr>
-            <tr><td><b>Salon recrutement</b></td><td>Campus Lumière</td><td class="n">08 déc. 2026</td><td class="n">12,1k / 48k</td><td><span class="chip">62 / 100</span></td><td><span class="chip warn">Peu de données</span></td></tr>
-          </tbody></table></div>
-      </div>
-    </div>
-  `
+  imports: [CommonModule, RouterLink],
+  templateUrl: './home.component.html',
+  styleUrls: ['./home.component.css'],
 })
-export class HomeComponent {}
+export class HomeComponent implements OnInit {
+  data: Dashboard | null = null;
+  loading = true;
+  error = '';
+  showFinished = false;
+
+  constructor(private http: HttpClient, private router: Router, readonly auth: AuthService) {}
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.loading = true;
+    this.error = '';
+    this.http.get<Dashboard>('/api/dashboard/').subscribe({
+      next: (data) => { this.data = data; this.loading = false; },
+      error: (err) => {
+        this.error = err?.error?.detail || err?.error?.error || 'Impossible de charger le tableau de bord.';
+        this.loading = false;
+      },
+    });
+  }
+
+  get firstName(): string {
+    return (this.auth.fullName || '').split(' ')[0] || '';
+  }
+
+  get greeting(): string {
+    const hour = new Date().getHours();
+    return hour < 5 || hour >= 18 ? 'Bonsoir' : 'Bonjour';
+  }
+
+  get events(): DashboardEvent[] {
+    return (this.data?.events ?? []).filter(e => this.showFinished || !e.finished);
+  }
+
+  get finishedCount(): number {
+    return (this.data?.events ?? []).filter(e => e.finished).length;
+  }
+
+  get registrationRate(): number | null {
+    const t = this.data?.totals;
+    return t && t.expected ? Math.round((t.registrations / t.expected) * 100) : null;
+  }
+
+  get budgetRate(): number | null {
+    const t = this.data?.totals;
+    return t && t.budget ? Math.round((t.estimated_total / t.budget) * 100) : null;
+  }
+
+  /** Points d'attention déduits des chiffres réels, du plus grave au moins grave. */
+  get alerts(): Alert[] {
+    const out: Alert[] = [];
+    for (const e of (this.data?.events ?? []).filter(x => !x.finished)) {
+      if (e.budget_status === 'over_budget') {
+        out.push({ level: 'risk', eventId: e.id, title: `${e.name} dépasse son budget`,
+          detail: `${this.money(e.estimated_total)} estimés pour ${this.money(e.budget)} prévus.` });
+      }
+      if (e.days_until != null && e.days_until >= 0 && e.days_until <= 30 && e.expected && e.registered < e.expected * 0.5) {
+        out.push({ level: 'warn', eventId: e.id, title: `${e.name} : inscriptions en retard`,
+          detail: `${e.registered} inscrit(s) sur ${e.expected} attendus, J-${e.days_until}.` });
+      }
+      if (e.capacity && e.registered > e.capacity) {
+        out.push({ level: 'risk', eventId: e.id, title: `${e.name} : capacité dépassée`,
+          detail: `${e.registered} inscrits pour ${e.capacity} places.` });
+      }
+      if (e.budget_status === 'budget_missing') {
+        out.push({ level: 'info', eventId: e.id, title: `${e.name} : budget non défini`,
+          detail: 'Renseignez un budget cible pour suivre les dépassements.' });
+      } else if (!e.items_count && e.status !== 'draft') {
+        out.push({ level: 'info', eventId: e.id, title: `${e.name} : aucune ressource chiffrée`,
+          detail: 'Ajoutez les postes de dépense pour estimer le coût réel.' });
+      }
+      for (const a of e.sponsor_alerts ?? []) {
+        out.push({ level: a.severity === 'error' ? 'risk' : 'warn', eventId: e.id,
+          title: `${e.name} : sponsoring`, detail: a.message });
+      }
+      if (e.fit && e.fit.average < 50) {
+        out.push({ level: 'warn', eventId: e.id, title: `${e.name} : adéquation faible`,
+          detail: `Adéquation IA moyenne de ${e.fit.average}/100 sur ${e.fit.count} profil(s).` });
+      }
+    }
+    const order = { risk: 0, warn: 1, info: 2 };
+    return out.sort((a, b) => order[a.level] - order[b.level]).slice(0, 6);
+  }
+
+  openTwin(eventId: string): void {
+    this.router.navigate(['/app/home'], { queryParams: { event: eventId } });
+  }
+
+  // --- Mise en forme ------------------------------------------------------------
+
+  money(value: number | null | undefined): string {
+    if (value == null) return '—';
+    if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} M€`;
+    if (Math.abs(value) >= 10_000) return `${Math.round(value / 1000).toLocaleString('fr-FR')} k€`;
+    return `${Math.round(value).toLocaleString('fr-FR')} €`;
+  }
+
+  pct(part: number | null | undefined, whole: number | null | undefined): number {
+    if (!part || !whole) return 0;
+    return Math.min(100, Math.round((part / whole) * 100));
+  }
+
+  budgetTone(e: DashboardEvent): string {
+    if (e.budget_status === 'over_budget') return 'risk';
+    if ((e.usage_rate ?? 0) >= 90) return 'warn';
+    return 'gain';
+  }
+
+  countdown(e: DashboardEvent): string {
+    if (e.finished) return 'Terminé';
+    if (e.days_until == null) return 'Date à définir';
+    if (e.days_until < 0) return 'En cours';
+    if (e.days_until === 0) return "Aujourd'hui";
+    return `J-${e.days_until}`;
+  }
+
+  relative(iso: string): string {
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60) return "à l'instant";
+    if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+    if (diff < 7 * 86400) return `il y a ${Math.floor(diff / 86400)} j`;
+    return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
+}

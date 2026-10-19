@@ -28,7 +28,7 @@ import {
 
         <section class="card" style="margin-bottom:16px">
           <div class="card-head"><div><h3>Pertinence des sponsors</h3><p>Score explicable : secteur, audience, budget, historique</p></div>
-            <button type="button" class="btn btn-sm btn-ai" [disabled]="evaluating" (click)="evaluate()">{{ evaluating ? 'Évaluation…' : 'Évaluer les sponsors' }}</button></div>
+            <button type="button" class="btn btn-sm btn-primary" [disabled]="evaluating" (click)="evaluate()">{{ evaluating ? 'Évaluation…' : 'Évaluer les sponsors' }}</button></div>
           @if (!fits.length) {
             <div class="empty"><h4>Aucune évaluation</h4><p>Lancez l'évaluation pour classer vos sponsors selon leur pertinence pour cet événement.</p></div>
           } @else {

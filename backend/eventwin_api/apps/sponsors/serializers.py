@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.participants.models import display_name
+
 from .models import (
     DEAL_STATUS_DEFAULT_PROBABILITY,
     Sponsor,
@@ -49,7 +51,7 @@ class SponsorSerializer(serializers.ModelSerializer):
 
     def get_created_by_name(self, obj):
         if obj.created_by and obj.created_by.user:
-            return obj.created_by.user.username
+            return display_name(obj.created_by.user)
         return ''
 
 
@@ -145,7 +147,7 @@ class SponsorshipDealSerializer(serializers.ModelSerializer):
 
     def get_owner_name(self, obj):
         if obj.owner and obj.owner.user:
-            return obj.owner.user.username
+            return display_name(obj.owner.user)
         return ''
 
     def get_created_by_name(self, obj):
@@ -224,7 +226,7 @@ class SponsorshipActivitySerializer(serializers.ModelSerializer):
     def get_actor_name(self, obj):
         if obj.actor_id is None:
             return 'Sponsor (portail)' if obj.action == 'asset_submitted' else 'Système'
-        return obj.actor.user.username if obj.actor.user else 'Organisateur'
+        return display_name(obj.actor.user) if obj.actor.user else 'Organisateur'
 
 
 class SponsorDeliverableSerializer(serializers.ModelSerializer):
